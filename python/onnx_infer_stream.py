@@ -11,6 +11,8 @@ def get_argparser():
         description="Run TTS on input sentence"
     )
     parser.add_argument("--sentence", "-s", type=str, required=False, default="爱芯元智半导体股份有限公司，致力于打造世界领先的人工智能感知与边缘计算芯片。服务智慧城市、智能驾驶、机器人的海量普惠的应用")
+    parser.add_argument("--speed", type=float, required=False, default=1.0)
+    parser.add_argument("--sample_rate", "-sr", type=int, required=False, default=44100)
     return parser
 
 
@@ -89,14 +91,32 @@ def insert_zeros(arr):
     return new_arr
 
 
+def audio_numpy_concat(segment_data_list, sr, speed=1.):
+    audio_segments = []
+    for segment_data in segment_data_list:
+        audio_segments += segment_data.reshape(-1).tolist()
+        audio_segments += [0] * int((sr * 0.05) / speed)
+    audio_segments = np.array(audio_segments).astype(np.float32)
+    return audio_segments
+
+
 def main():
     args = get_argparser().parse_args()
+    # 输入句子
+    sentence = args.sentence
+    print(f"sentence: {sentence}")
+    sentence += "........"
+
+    speed = args.speed
+    sample_rate = args.sample_rate
+
+    print(f"speed: {speed}")
+    print(f"sample_rate: {sample_rate}")
 
     # 加载拼音字典
     pinyin_dict = load_pinyin_dict()
 
-    # 输入句子
-    sentence = args.sentence
+    
     
     # 获取拼音和音调列表
     pinyin_list, tone_list = get_pinyin_and_tones(sentence, pinyin_dict)
@@ -110,15 +130,15 @@ def main():
     # 替换音节为对应数字
     replaced_array = replace_syllables_with_numbers(pinyin_list, syllable_dict)
 
-    print("替换后的数组:", replaced_array)
+    # print("替换后的数组:", replaced_array)
 
     replaced_array = np.pad(replaced_array, pad_width=1, mode='constant', constant_values=0)
     tone_array = np.pad(tone_list, pad_width=1, mode='constant', constant_values=0)
     langids = np.zeros_like(tone_array) + 3
 
-    print("pad phone:", replaced_array)
-    print("pad tone:", tone_array)
-    print("langids:", langids)
+    # print("pad phone:", replaced_array)
+    # print("pad tone:", tone_array)
+    # print("langids:", langids)
 
 
     x_tst = insert_zeros(replaced_array).reshape((1,-1))
@@ -126,9 +146,9 @@ def main():
     tones = insert_zeros(tone_array).reshape((1,-1))
     langids = insert_zeros(langids).reshape((1,-1))
 
-    print("insert_zeros phone:", x_tst)
-    print("insert_zeros tone:", tones)
-    print("insert_zeros langids:", langids)
+    # print("insert_zeros phone:", x_tst)
+    # print("insert_zeros tone:", tones)
+    # print("insert_zeros langids:", langids)
 
     x_tst = np.array(x_tst,dtype=np.int64)
     xlen = np.array([xlen],dtype=np.int64)
@@ -152,7 +172,7 @@ def main():
     x = sess.run(None, input_feed={'x_tst': x_tst, 'x_tst_l': xlen, 'g': g,
                                 'tones': tones, 'langids': langids, 'bert': bert, 'jabert': jabert,
                                 'noise_scale': np.array([0.3], dtype=np.float32),
-                                'length_scale': np.array([1], dtype=np.float32),
+                                'length_scale': np.array([1.0 / speed], dtype=np.float32),
                                 'noise_scale_w': np.array([0.8], dtype=np.float32),
                                 'sdp_ratio': np.array([0.2], dtype=np.float32)})
 
@@ -178,11 +198,13 @@ def main():
     wavlist = []
     i = 0
 
-    index = 0
+    ymaskseg = ymaskseg.flatten()
+    g = g.flatten()
     while(i+segsize<=mellen):
         segz = zp[:,:,i:i+segsize]
         i += segsize-2*padsize
         
+        segz = segz.flatten()
         sessf.feed_inputs([segz, ymaskseg, g])
         sessf.forward()
         x = sessf.get_outputs(["6797"])
@@ -192,14 +214,16 @@ def main():
         sessd.forward()
         x = sessd.get_outputs(["827"])
 
-        wav = x["827"]
-        # wav = np.array(x["827"], dtype=np.float32).reshape((1, 1, 61440))
+        wav = np.array(x["827"], dtype=np.float32).flatten()
         wav *= 5
-        wavlist.append(wav[:,:,padsize*512:-padsize*512])
+        # wavlist.append(wav[padsize*512:-padsize*512])
+        wavlist.append(wav)
 
-    wavlist = np.array(wavlist).flatten()
+    # wavlist = np.array(wavlist).flatten()
+    wavlist = audio_numpy_concat(wavlist, sr=sample_rate, speed=speed)    
     outfile = "./test_cn.wav"
-    soundfile.write(outfile, wavlist, 44100)
+    soundfile.write(outfile, wavlist, sample_rate)
+    print(f"Save to {outfile}")
 
 
 if __name__ == "__main__":
