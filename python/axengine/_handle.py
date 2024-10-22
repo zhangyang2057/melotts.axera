@@ -3,56 +3,67 @@ from axengine import _C
 
 
 class InferenceSession:
-    def __init__(self) -> None:
+    def __init__(self, handle) -> None:
         """
         InferenceSession Collection.
-
-        Args:
-            model_format (string, optional): Model format. Defaults to "axmodel".
-            device (string, optional): Running device. Defaults to "CPU".
         """
-        self._handle = _C.Runner()
-        self._init_engine()
+        self._handle = handle
+        self._init_device()
 
-    def _init_engine(self):
-        self._handle.init_device()
+    def _init_device(self) -> None:
+        success = self._handle.init_device()
+        if not success:
+            raise SystemError("Err... Something wrong while initializing the AX System.")
 
-    def load_model(self, model_path: str):
+    @classmethod
+    def load_from_model(cls, model_path: str) -> "InferenceSession":
         """
         Load model graph to InferenceSession.
 
         Args:
             model_path (string): Path to model
-            input_size (Tuple[int, int]): Image size with (H, W) layout
         """
-        return self._handle.load_model(model_path)
+        _handle = _C.Runner()
+        sess = cls(_handle)
+        success = sess._handle.load_model(model_path)
+        if not success:
+            raise BufferError("Err... Something wrong while loading the model.")
+        return sess
 
     def get_cmm_usage(self):
         return self._handle.get_cmm_usage()
 
-    def feed_input_to_index(self, input_feed: np.ndarray, input_index: int):
-        self._handle.feed_input_to_index(input_feed, input_index)
-
-    def feed_inputs(self, input_feed: list[np.ndarray]):
-        """
-        Args:
-            input_feed (np.ndarray): The input feed
-        """
-        for i, inp in enumerate(input_feed):
-            self.feed_input_to_index(inp, i)
-
-    def forward(self):
-        """
-        Returns:
-            np.ndarray: Output of the networks.
-        """
-        self._handle.forward()
+    def feed_input_to_index(self, input_datum: np.ndarray, input_index: int):
+        success = self._handle.feed_input_to_index(input_datum, input_index)
+        if not success:
+            raise BufferError(f"Err... Something wrong while reading the {input_index}th input.")
 
     def get_output_from_index(self, output_index: int):
         return self._handle.get_output_from_index(output_index)
 
-    def get_outputs(self, output_names):
+    def get_inputs(self):
+        return self._handle.get_input_names()
+
+    def get_outputs(self):
+        return self._handle.get_output_names()
+
+    def get_output_shapes(self):
+        return self._handle.get_output_shapes()
+
+    def run(self, input_feed: dict[str, np.ndarray]) -> list[np.ndarray]:
+        """
+        Returns:
+            list[np.ndarray]: Output of the models.
+        """
+        for i, input_name in enumerate(self.get_inputs()):
+            input_datum = input_feed[input_name]
+            self.feed_input_to_index(input_datum, i)
+
+        # Forward
+        self._handle.forward()
+        # Get outputs
         output_data = {}
-        for i, output_name in enumerate(output_names):
-            output_data[output_name] = self.get_output_from_index(i)
+        output_shapes = self.get_output_shapes()
+        for i, output_name in enumerate(self.get_outputs()):
+            output_data[output_name] = self.get_output_from_index(i).reshape(*output_shapes[i])
         return output_data
