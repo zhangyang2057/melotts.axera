@@ -173,7 +173,7 @@ def main():
                                 'tones': tones, 'langids': langids, 'bert': bert, 'jabert': jabert,
                                 'noise_scale': np.array([0.3], dtype=np.float32),
                                 'length_scale': np.array([1.0 / speed], dtype=np.float32),
-                                'noise_scale_w': np.array([0.8], dtype=np.float32),
+                                'noise_scale_w': np.array([0.6], dtype=np.float32),
                                 'sdp_ratio': np.array([0.2], dtype=np.float32)})
 
     zp,ymask = x[0],x[1] # zp 1 192 mellen  ymask 1 1 mellen 全为1
