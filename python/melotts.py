@@ -11,6 +11,7 @@ def get_argparser():
         description="Run TTS on input sentence"
     )
     parser.add_argument("--sentence", "-s", type=str, required=False, default="爱芯元智半导体股份有限公司，致力于打造世界领先的人工智能感知与边缘计算芯片。服务智慧城市、智能驾驶、机器人的海量普惠的应用")
+    parser.add_argument("--wav", "-w", type=str, required=False, default="test_cn.wav")
     parser.add_argument("--speed", type=float, required=False, default=1.0)
     parser.add_argument("--sample_rate", "-sr", type=int, required=False, default=44100)
     return parser
@@ -184,11 +185,9 @@ def main():
     dec_model = "../models/decoder.axmodel"
     flow_model = "../models/flow.axmodel"
 
-    sessd = InferenceSession()
-    sessd.load_model(dec_model)
+    sessd = InferenceSession.load_from_model(dec_model)
 
-    sessf = InferenceSession()
-    sessf.load_model(flow_model)
+    sessf = InferenceSession.load_from_model(flow_model)
 
     mellen = ymask.shape[2]
     segsize = 120
@@ -205,23 +204,20 @@ def main():
         i += segsize-2*padsize
         
         segz = segz.flatten()
-        sessf.feed_inputs([segz, ymaskseg, g])
-        sessf.forward()
-        x = sessf.get_outputs(["6797"])
+
+        x = sessf.run(input_feed={'z': segz, 'ymask': ymaskseg, 'g': g})
         flowout = x["6797"].flatten()
 
-        sessd.feed_inputs([flowout, g])
-        sessd.forward()
-        x = sessd.get_outputs(["827"])
+        x = sessd.run(input_feed={'z': flowout, 'g': g})
 
         wav = np.array(x["827"], dtype=np.float32).flatten()
         wav *= 5
-        # wavlist.append(wav[padsize*512:-padsize*512])
-        wavlist.append(wav)
+        wavlist.append(wav[padsize*512:-padsize*512])
+        # wavlist.append(wav)
 
     # wavlist = np.array(wavlist).flatten()
     wavlist = audio_numpy_concat(wavlist, sr=sample_rate, speed=speed)    
-    outfile = "./test_cn.wav"
+    outfile = args.wav
     soundfile.write(outfile, wavlist, sample_rate)
     print(f"Save to {outfile}")
 
