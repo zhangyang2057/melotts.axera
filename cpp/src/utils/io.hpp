@@ -462,7 +462,7 @@ namespace utils {
         return 0;
     }
 
-    static inline AX_S32 push_io_input(uint8_t* input, int index, AX_ENGINE_IO_T& io) {
+    static inline AX_S32 push_io_input(void* input, int index, AX_ENGINE_IO_T& io) {
         // img ranks_depth ranks_feat ranks_bev, n_points
         AX_ENGINE_IO_BUFFER_T* pImg = &io.pInputs[index];
         memcpy(pImg->pVirAddr, input, pImg->nSize);
@@ -477,7 +477,7 @@ namespace utils {
         return 0;
     }
 
-    static inline AX_S32 push_io_output(uint8_t* output,
+    static inline AX_S32 push_io_output(void* output,
                                         int index,
                                         AX_ENGINE_IO_T& io) {
         AX_ENGINE_IO_BUFFER_T* pImg = &io.pOutputs[index];

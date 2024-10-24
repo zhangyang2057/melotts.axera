@@ -250,7 +250,7 @@ int EngineWrapper::Init(const char* strModelPath, uint32_t nNpuType)
     return 0;
 }
 
-int EngineWrapper::SetInput(uint8_t* pInput, int index) {
+int EngineWrapper::SetInput(void* pInput, int index) {
     return utils::push_io_input(pInput, index, m_io);
 }
 
@@ -269,7 +269,7 @@ int EngineWrapper::RunSync()
     return 0;
 }
 
-int EngineWrapper::GetOutput(uint8_t* pOutput, int index) {
+int EngineWrapper::GetOutput(void* pOutput, int index) {
     return utils::push_io_output(pOutput, index, m_io);
 }
 

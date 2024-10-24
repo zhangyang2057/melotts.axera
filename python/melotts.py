@@ -106,7 +106,7 @@ def main():
     # 输入句子
     sentence = args.sentence
     print(f"sentence: {sentence}")
-    sentence += "........"
+    
 
     speed = args.speed
     sample_rate = args.sample_rate
@@ -147,9 +147,7 @@ def main():
     tones = insert_zeros(tone_array).reshape((1,-1))
     langids = insert_zeros(langids).reshape((1,-1))
 
-    # print("insert_zeros phone:", x_tst)
-    # print("insert_zeros tone:", tones)
-    # print("insert_zeros langids:", langids)
+    
 
     x_tst = np.array(x_tst,dtype=np.int64)
     xlen = np.array([xlen],dtype=np.int64)
@@ -159,6 +157,12 @@ def main():
     langids =np.array(langids,dtype=np.int64)
     bert = np.zeros((1,1024,len(x_tst[0])),dtype=np.float32)
     jabert = np.zeros((1,768,len(x_tst[0])),dtype=np.float32)
+
+    print(f"xlen: {xlen}")
+    print(f"langids len")
+    print("insert_zeros phone:", x_tst)
+    print("insert_zeros tone:", tones)
+    print("insert_zeros langids:", langids)
 
 
     #-------------------------------------推理enc
@@ -179,7 +183,10 @@ def main():
 
     zp,ymask = x[0],x[1] # zp 1 192 mellen  ymask 1 1 mellen 全为1
 
-
+    print(f"zp.size: {zp.shape}")
+    print(f"ymask.size: {ymask.flatten().shape[0]}")
+    zp.flatten().tofile("zp.bin")
+    ymask.flatten().tofile("ymask.bin")
 
     #-------------------------------------推理dec和flow
     dec_model = "../models/decoder.axmodel"
@@ -190,6 +197,7 @@ def main():
     sessf = InferenceSession.load_from_model(flow_model)
 
     mellen = ymask.shape[2]
+    print(f"mellen: {mellen}")
     segsize = 120
     padsize = 10
 
@@ -199,11 +207,15 @@ def main():
 
     ymaskseg = ymaskseg.flatten()
     g = g.flatten()
+    n = 0
     while(i+segsize<=mellen):
         segz = zp[:,:,i:i+segsize]
         i += segsize-2*padsize
         
         segz = segz.flatten()
+
+        segz.tofile(f"segz_{n}.bin")
+        n += 1
 
         x = sessf.run(input_feed={'z': segz, 'ymask': ymaskseg, 'g': g})
         flowout = x["6797"].flatten()
@@ -215,8 +227,8 @@ def main():
         wavlist.append(wav[padsize*512:-padsize*512])
         # wavlist.append(wav)
 
-    # wavlist = np.array(wavlist).flatten()
-    wavlist = audio_numpy_concat(wavlist, sr=sample_rate, speed=speed)    
+    wavlist = np.array(wavlist).flatten()
+    # wavlist = audio_numpy_concat(wavlist, sr=sample_rate, speed=speed)    
     outfile = args.wav
     soundfile.write(outfile, wavlist, sample_rate)
     print(f"Save to {outfile}")

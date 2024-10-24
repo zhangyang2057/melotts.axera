@@ -31,11 +31,11 @@ public:
 
     int Init(const char* strModelPath, uint32_t nNpuType = 0);
 
-    int SetInput(uint8_t* pInput, int index);
+    int SetInput(void* pInput, int index);
 
     int RunSync();
 
-    int GetOutput(uint8_t* pOutput, int index);
+    int GetOutput(void* pOutput, int index);
 
     int GetInputSize(int index);
     int GetOutputSize(int index);
