@@ -3,6 +3,7 @@ import onnxruntime as ort
 import soundfile
 from axengine import InferenceSession
 import argparse
+import time
 
 
 def get_argparser():
@@ -122,8 +123,8 @@ def main():
     # 获取拼音和音调列表
     pinyin_list, tone_list = get_pinyin_and_tones(sentence, pinyin_dict)
 
-    print("拼音列表:", pinyin_list)
-    print("音调列表:", tone_list)
+    # print("拼音列表:", pinyin_list)
+    # print("音调列表:", tone_list)
 
 
     syllable_dict = load_syllable_dict()
@@ -158,11 +159,11 @@ def main():
     bert = np.zeros((1,1024,len(x_tst[0])),dtype=np.float32)
     jabert = np.zeros((1,768,len(x_tst[0])),dtype=np.float32)
 
-    print(f"xlen: {xlen}")
-    print(f"langids len")
-    print("insert_zeros phone:", x_tst)
-    print("insert_zeros tone:", tones)
-    print("insert_zeros langids:", langids)
+    # print(f"xlen: {xlen}")
+    # print(f"langids len")
+    # print("insert_zeros phone:", x_tst)
+    # print("insert_zeros tone:", tones)
+    # print("insert_zeros langids:", langids)
 
 
     #-------------------------------------推理enc
@@ -174,19 +175,21 @@ def main():
         onnx_model, providers=providers, sess_options=sess_options)
 
     g = np.fromfile('../models/g.bin',dtype=np.float32).reshape(1,256,1)
+    start = time.time()
     x = sess.run(None, input_feed={'x_tst': x_tst, 'x_tst_l': xlen, 'g': g,
                                 'tones': tones, 'langids': langids, 'bert': bert, 'jabert': jabert,
                                 'noise_scale': np.array([0.3], dtype=np.float32),
                                 'length_scale': np.array([1.0 / speed], dtype=np.float32),
                                 'noise_scale_w': np.array([0.6], dtype=np.float32),
                                 'sdp_ratio': np.array([0.2], dtype=np.float32)})
+    print(f"encoder run take {1000 * (time.time() - start)}ms")
 
     zp,ymask = x[0],x[1] # zp 1 192 mellen  ymask 1 1 mellen 全为1
 
-    print(f"zp.size: {zp.shape}")
-    print(f"ymask.size: {ymask.flatten().shape[0]}")
-    zp.flatten().tofile("zp.bin")
-    ymask.flatten().tofile("ymask.bin")
+    # print(f"zp.size: {zp.shape}")
+    # print(f"ymask.size: {ymask.flatten().shape[0]}")
+    # zp.flatten().tofile("zp.bin")
+    # ymask.flatten().tofile("ymask.bin")
 
     #-------------------------------------推理dec和flow
     dec_model = "../models/decoder.axmodel"
