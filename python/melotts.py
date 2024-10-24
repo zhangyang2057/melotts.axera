@@ -210,16 +210,11 @@ def main():
 
     ymaskseg = ymaskseg.flatten()
     g = g.flatten()
-    n = 0
     while(i+segsize<=mellen):
         segz = zp[:,:,i:i+segsize]
         i += segsize-2*padsize
         
         segz = segz.flatten()
-
-        segz.tofile(f"segz_{n}.bin")
-        n += 1
-
         x = sessf.run(input_feed={'z': segz, 'ymask': ymaskseg, 'g': g})
         flowout = x["6797"].flatten()
 
