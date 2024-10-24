@@ -1,6 +1,12 @@
 # melotts.axera
 MeloTTS demo on Axera AX650
 
+目前模型分成了encoder、flow、decoder三部分，encoder部分尚未转成axmodel（目前通过onnxruntime运行）。
+
+TBD：
+- [ ] encoder转成axmodel
+- [ ] 效果与官方repo对齐
+
 ## For Chinese input(Run on board)
 ```locale-gen C.utf8```  
 ```update-locale LANG=C.utf8```  
@@ -9,10 +15,10 @@ MeloTTS demo on Axera AX650
 ### Requirements
 ```apt-get install libsndfile1-dev```  
 ```mkdir /opt/site-packages```  
-```pip3 install -r requirements.txt --prefix=/opt/site-packages```
+```pip3 install -r requirements.txt --prefix=/opt/site-packages```  
 
 Put  
-```export PYTHONPATH=$PYTHONPATH:/opt/site-packages/local/lib/python3.10/dist-packages```
+```export PYTHONPATH=$PYTHONPATH:/opt/site-packages/local/lib/python3.10/dist-packages```  
 ```export PATH=$PATH:/opt/site-packages/local/bin```  
 to /root/.bashrc  
 
