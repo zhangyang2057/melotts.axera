@@ -26,10 +26,12 @@ def main():
     config_path = "config.json"
     ckpt_path = "checkpoint.pth"
     device = "cpu"
-    model = TTS(language=language, config_path=config_path, ckpt_path=ckpt_path)
+    phone_len = 64
+    speaker_id = 1
+    model = TTS(language=language, x_len=phone_len, config_path=config_path, ckpt_path=ckpt_path)
     
-    save_path = f'output.wav'
-    model.tts_to_file("顶你个肺", 1, save_path)
+    output_path = f'output.wav'
+    model.tts_to_file(text="道可道，非常道。名可名，非常名。无名天地之始；有名万物之母。故常无欲，以观其妙；常有欲，以观其徼。此两者，同出而异名，同谓之玄。玄之又玄，衆妙之门", output_path=output_path)
 
 if __name__ == "__main__":
     main()

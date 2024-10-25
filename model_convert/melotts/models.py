@@ -337,7 +337,6 @@ class TextEncoder(nn.Module):
         self.p_dropout = p_dropout
         self.gin_channels = gin_channels
         self.emb = nn.Embedding(n_vocab, hidden_channels)
-        print(f"self.emb: {n_vocab} {hidden_channels}")
         nn.init.normal_(self.emb.weight, 0.0, hidden_channels**-0.5)
         self.tone_emb = nn.Embedding(num_tones, hidden_channels)
         nn.init.normal_(self.tone_emb.weight, 0.0, hidden_channels**-0.5)
@@ -784,6 +783,7 @@ class SynthesizerTrn(nn.Module):
         num_languages=None,
         num_tones=None,
         norm_refenc=False,
+        x_len = 128,
         **kwargs
     ):
         super().__init__()
@@ -818,6 +818,8 @@ class SynthesizerTrn(nn.Module):
             self.enc_gin_channels = gin_channels
         else:
             self.enc_gin_channels = 0
+        self.x_len = x_len
+
         self.enc_p = TextEncoder(
             n_vocab,
             inter_channels,
@@ -1050,9 +1052,9 @@ class SynthesizerTrn(nn.Module):
         x_lengths,
         tone,
         language,
-        sid,
-        noise_scale=0.667,
-        duration=3.5
+        # sid,
+        # noise_scale=0.667,
+        # duration=3.5
     ):
         # x, m_p, logs_p, x_mask = self.enc_p(x, x_lengths, tone, language, bert)
         # g = self.gst(y)
@@ -1060,6 +1062,11 @@ class SynthesizerTrn(nn.Module):
         bert = torch.zeros(1, 1024, phone_len)
         ja_bert = torch.zeros(1, 768, phone_len)
 
+        # noise_scale_w = 0.6
+        # sdp_ratio = 0
+        # length_scale = 1
+
+        sid = torch.IntTensor([1])
         g = self.emb_g(sid).unsqueeze(-1)
         x, m_p, logs_p, x_mask = self.enc_p(
             x, x_lengths, tone, language, bert, ja_bert, g=g
@@ -1070,20 +1077,27 @@ class SynthesizerTrn(nn.Module):
         # w = torch.exp(logw) * x_mask * length_scale
         
         # w_ceil = torch.ceil(w)
+
+        duration = 5
         w_ceil = torch.zeros_like(x_mask) + duration
+
         # print(f"w_ceil.shape: {w_ceil.size()}")
         # y_lengths = torch.clamp_min(torch.sum(w_ceil, [1, 2]), 1).long()
-        # print(f"y_lengths: {y_lengths}")
-
-        # y_mask = torch.unsqueeze(commons.sequence_mask(y_lengths, None), 1).to(
-        #     x_mask.dtype
-        # )
-
-        y_mask = torch.unsqueeze(commons.sequence_mask(5 * x_lengths, None), 1).to(
+        y_lengths = torch.IntTensor([duration * phone_len])
+        y_mask = torch.unsqueeze(commons.sequence_mask(y_lengths, None), 1).to(
             x_mask.dtype
         )
 
+        # y_lengths = 5 * x_lengths
+        # y_mask = torch.unsqueeze(commons.sequence_mask(y_lengths, phone_len), 1).to(
+        #     x_mask.dtype
+        # )
+
+        # print(f"x_length: {x_lengths}")
+        # print(f"x_mask.shape: {x_mask.size()}")
+        # print(f"y_lengths: {y_lengths}")
         # print(f"y_mask: {y_mask.size()}")
+
         attn_mask = torch.unsqueeze(x_mask, 2) * torch.unsqueeze(y_mask, -1)
         attn = commons.generate_path(w_ceil, attn_mask)
         # print(f"x_mask.shape: {x_mask.size()}")
@@ -1094,12 +1108,13 @@ class SynthesizerTrn(nn.Module):
         m_p = torch.matmul(attn.squeeze(1), m_p.transpose(1, 2)).transpose(
             1, 2
         )  # [b, t', t], [b, t, d] -> [b, d, t']
-        logs_p = torch.matmul(attn.squeeze(1), logs_p.transpose(1, 2)).transpose(
-            1, 2
-        )  # [b, t', t], [b, t, d] -> [b, d, t']
+        # logs_p = torch.matmul(attn.squeeze(1), logs_p.transpose(1, 2)).transpose(
+        #     1, 2
+        # )  # [b, t', t], [b, t, d] -> [b, d, t']
 
-        z_p = m_p + torch.randn_like(m_p) * torch.exp(logs_p) * noise_scale
+        z_p = m_p #  + torch.randn_like(m_p) * torch.exp(logs_p) * noise_scale
         z = self.flow(z_p, y_mask, g=g, reverse=True)
         o = self.dec(z * y_mask, g=g)
+        o_len = 512 * duration * x_lengths
         # print('max/min of o:', o.max(), o.min())
-        return o
+        return o, o_len

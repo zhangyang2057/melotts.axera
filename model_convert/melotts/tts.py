@@ -60,6 +60,7 @@ def get_text_for_tts_infer(text, language_str, hps, device, symbol_to_id=None):
 class TTS(nn.Module):
     def __init__(self, 
                 language,
+                x_len=128,
                 device='auto',
                 use_hf=True,
                 config_path=None,
@@ -86,6 +87,7 @@ class TTS(nn.Module):
             n_speakers=hps.data.n_speakers,
             num_tones=num_tones,
             num_languages=num_languages,
+            x_len=x_len,
             **hps.model,
         ).to(device)
 
@@ -122,7 +124,8 @@ class TTS(nn.Module):
 
     def tts_to_file(self, text, speaker_id, output_path=None, sdp_ratio=0.2, noise_scale=0.6, noise_scale_w=0.8, speed=1.0, pbar=None, format=None, position=None, quiet=False,):
         language = self.language
-        texts = self.split_sentences_into_pieces(text, language, quiet)
+        # texts = self.split_sentences_into_pieces(text, language, quiet)
+        texts = [text]
         audio_list = []
         if pbar:
             tx = pbar(texts)
@@ -140,7 +143,7 @@ class TTS(nn.Module):
             bert, ja_bert, phones, tones, lang_ids = get_text_for_tts_infer(t, language, self.hps, device, self.symbol_to_id)
             
             # slice 到固定长度
-            phone_len = 128
+            phone_len = self.model.x_len
             bert = torch.zeros(1024, phone_len)
             ja_bert = torch.zeros(768, phone_len)
             nslice = int(np.ceil(phones.size(0) * 1.0 / phone_len))
@@ -172,17 +175,21 @@ class TTS(nn.Module):
                     x_tst_lengths = torch.LongTensor([slice_len]).to(device)
                     # del phones
                     speakers = torch.LongTensor([speaker_id]).to(device)
-                    audio = self.model.forward(
+                    audio, audio_size = self.model.forward(
                             phones_slice,
                             x_tst_lengths,
-                            speakers,
                             tones_slice,
                             langids_slice,
-                            noise_scale=noise_scale,
-                        )[0, 0].data.cpu().float().numpy()
+                            speakers
+                        )
+                    audio = audio[0, 0].data.cpu().float().numpy()
+                    audio_size = audio_size.item()
                     # del x_tst, tones, lang_ids, bert, ja_bert, x_tst_lengths, speakers
                         # 
+                    audio = audio[:audio_size]
                     audio_list.append(audio)
+                    print(f"audio.size: {audio.shape[-1]}")
+                    
         torch.cuda.empty_cache()
         audio = self.audio_numpy_concat(audio_list, sr=self.hps.data.sampling_rate, speed=speed)
 

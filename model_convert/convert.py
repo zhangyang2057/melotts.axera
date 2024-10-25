@@ -25,13 +25,14 @@ def main():
     language = get_args().language
     config_path = "config.json"
     ckpt_path = "checkpoint.pth"
-    device = "cpu"
-    tts = TTS(language=language, config_path=config_path, ckpt_path=ckpt_path)
-
-    speaker_id = 1
     phone_len = 128
-    noise_scale = 0.6
-    duration = 3.5
+
+    tts = TTS(language=language, x_len=phone_len, config_path=config_path, ckpt_path=ckpt_path)
+
+    # speaker_id = 1
+    
+    # noise_scale = 0.6
+    # duration = 3.5
 
     with torch.no_grad():
         phones = torch.zeros(phone_len, dtype=torch.int32)
@@ -45,11 +46,9 @@ def main():
         #     tone,
         #     language,
         #     sid,
-        #     noise_scale=0.667,
-        #     duration=3.5
-        # )
+        # ):
         inputs = (
-            phones, torch.IntTensor([phone_len]), tones, lang_ids, torch.IntTensor([speaker_id]), torch.FloatTensor([noise_scale]), torch.FloatTensor([duration])
+            phones, torch.IntTensor([phone_len]), tones, lang_ids
         )
 
         # Export the model
@@ -59,9 +58,11 @@ def main():
                         export_params=True,        # store the trained parameter weights inside the model file
                         opset_version=16,          # the ONNX version to export the model to
                         do_constant_folding=True,  # whether to execute constant folding for optimization
-                        input_names = ['x', 'x_len', 'tone', 'language', 'sid', 'noise_scale', 'duration'],   # the model's input names
-                        output_names = ['output'], # the model's output names
+                        input_names = ['x', 'x_len', 'tone', 'language'],   # the model's input names
+                        output_names = ['audio', 'audio_len'], # the model's output names
                         )
+        sim_model,_ = onnxsim.simplify("melotts.onnx")
+        onnx.save(sim_model, "melotts-sim.onnx")
 
 
 if __name__ == "__main__":
