@@ -31,7 +31,7 @@ def main():
     model = TTS(language=language, x_len=phone_len, config_path=config_path, ckpt_path=ckpt_path)
     
     output_path = f'output.wav'
-    model.tts_to_file(text="道可道，非常道。名可名，非常名。无名天地之始；有名万物之母。故常无欲，以观其妙；常有欲，以观其徼。此两者，同出而异名，同谓之玄。玄之又玄，衆妙之门", output_path=output_path)
+    model.tts_to_file(text="爱芯元智半导体股份有限公司，致力于打造世界领先的人工智能感知与边缘计算芯片。服务智慧城市、智能驾驶、机器人的海量普惠的应用", speaker_id=speaker_id, output_path=output_path)
 
 if __name__ == "__main__":
     main()

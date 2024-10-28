@@ -180,7 +180,6 @@ class TTS(nn.Module):
                             x_tst_lengths,
                             tones_slice,
                             langids_slice,
-                            speakers
                         )
                     audio = audio[0, 0].data.cpu().float().numpy()
                     audio_size = audio_size.item()

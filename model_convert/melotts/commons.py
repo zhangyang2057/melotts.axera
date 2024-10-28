@@ -122,6 +122,8 @@ def sequence_mask(length, max_length=None):
     if max_length is None:
         max_length = length.max()
     x = torch.arange(max_length, dtype=length.dtype, device=length.device)
+    print(f"x.unsqueeze(0).size = {x.unsqueeze(0).size()}")
+    print(f"length.unsqueeze(1).size = {length.unsqueeze(1).size()}")
     return x.unsqueeze(0) < length.unsqueeze(1)
 
 

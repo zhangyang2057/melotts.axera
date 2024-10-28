@@ -1052,39 +1052,34 @@ class SynthesizerTrn(nn.Module):
         x_lengths,
         tone,
         language,
-        # sid,
-        # noise_scale=0.667,
-        # duration=3.5
+        noise_scale=0.667,
+        noise_scale_w=0.8,
+        length_scale=1,
+        sdp_ratio=0
     ):
-        # x, m_p, logs_p, x_mask = self.enc_p(x, x_lengths, tone, language, bert)
-        # g = self.gst(y)
         phone_len = x.size(-1)
         bert = torch.zeros(1, 1024, phone_len)
         ja_bert = torch.zeros(1, 768, phone_len)
-
-        # noise_scale_w = 0.6
-        # sdp_ratio = 0
-        # length_scale = 1
 
         sid = torch.IntTensor([1])
         g = self.emb_g(sid).unsqueeze(-1)
         x, m_p, logs_p, x_mask = self.enc_p(
             x, x_lengths, tone, language, bert, ja_bert, g=g
         )
-        # logw = self.sdp(x, x_mask, g=g, reverse=True, noise_scale=noise_scale_w) * (
-        #     sdp_ratio
-        # ) + self.dp(x, x_mask, g=g) * (1 - sdp_ratio)
-        # w = torch.exp(logw) * x_mask * length_scale
+        logw = self.sdp(x, x_mask, g=g, reverse=True, noise_scale=noise_scale_w) * (
+            sdp_ratio
+        ) + self.dp(x, x_mask, g=g) * (1 - sdp_ratio)
+        w = torch.exp(logw) * x_mask * length_scale
         
-        # w_ceil = torch.ceil(w)
+        w_ceil = torch.ceil(w)
 
-        duration = 5
-        w_ceil = torch.zeros_like(x_mask) + duration
+        # duration = 5
+        # w_ceil = torch.zeros_like(x_mask) + duration
 
         # print(f"w_ceil.shape: {w_ceil.size()}")
-        # y_lengths = torch.clamp_min(torch.sum(w_ceil, [1, 2]), 1).long()
-        y_lengths = torch.IntTensor([duration * phone_len])
-        y_mask = torch.unsqueeze(commons.sequence_mask(y_lengths, None), 1).to(
+        y_lengths = torch.clamp_min(torch.sum(w_ceil, [1, 2]), 1).long()
+        # y_lengths = torch.IntTensor([duration * phone_len])
+        y_mask = torch.unsqueeze(commons.sequence_mask(y_lengths, 10 * phone_len), 1).to(
             x_mask.dtype
         )
 
@@ -1093,17 +1088,19 @@ class SynthesizerTrn(nn.Module):
         #     x_mask.dtype
         # )
 
-        # print(f"x_length: {x_lengths}")
-        # print(f"x_mask.shape: {x_mask.size()}")
-        # print(f"y_lengths: {y_lengths}")
-        # print(f"y_mask: {y_mask.size()}")
+        print(f"x_length: {x_lengths}")
+        print(f"x_mask.shape: {x_mask.size()}")
+        print(f"w_ceil.shape: {w_ceil.size()}")
+        print(f"w_ceil: {w_ceil}")
+        print(f"y_lengths: {y_lengths}")
+        print(f"y_mask: {y_mask.size()}")
 
         attn_mask = torch.unsqueeze(x_mask, 2) * torch.unsqueeze(y_mask, -1)
         attn = commons.generate_path(w_ceil, attn_mask)
         # print(f"x_mask.shape: {x_mask.size()}")
         # print(f"y_mask.shape: {y_mask.size()}")
-        # print(f"attn_mask.shape: {attn_mask.size()}")
-        # print(f"attn.shape: {attn.size()}")
+        print(f"attn_mask.shape: {attn_mask.size()}")
+        print(f"attn.shape: {attn.size()}")
 
         m_p = torch.matmul(attn.squeeze(1), m_p.transpose(1, 2)).transpose(
             1, 2
@@ -1112,9 +1109,13 @@ class SynthesizerTrn(nn.Module):
         #     1, 2
         # )  # [b, t', t], [b, t, d] -> [b, d, t']
 
-        z_p = m_p #  + torch.randn_like(m_p) * torch.exp(logs_p) * noise_scale
+        print(f"m_p.shape: {m_p.size()}")
+        print(f"logs_p.shape: {logs_p.size()}")
+        logs_p = F.pad(logs_p, [0, m_p.size(-1) - logs_p.size(-1)], mode="constant", value=1e-6)
+
+        z_p = m_p + torch.randn_like(m_p) * torch.exp(logs_p) * noise_scale
         z = self.flow(z_p, y_mask, g=g, reverse=True)
         o = self.dec(z * y_mask, g=g)
-        o_len = 512 * duration * x_lengths
+        # o_len = 512 * duration * x_lengths
         # print('max/min of o:', o.max(), o.min())
-        return o, o_len
+        return o, 512 * y_lengths
