@@ -1,0 +1,82 @@
+{
+    "model_type": "ONNX",
+    "npu_mode": "NPU1",
+    "quant": {
+      "input_configs": [
+        {
+          "tensor_name": "x",
+          "calibration_dataset": "/home/yrz/Codes/melotts.axera/model_convert/calibration_dataset/x.tar.gz",
+          "calibration_size": -1,
+          "calibration_format": "Numpy"
+        },
+        {
+          "tensor_name": "x_len",
+          "calibration_dataset": "/home/yrz/Codes/melotts.axera/model_convert/calibration_dataset/x_len.tar.gz",
+          "calibration_size": -1,
+          "calibration_format": "Numpy"
+        },
+        {
+            "tensor_name": "g",
+            "calibration_dataset": "/home/yrz/Codes/melotts.axera/model_convert/calibration_dataset/g.tar.gz",
+            "calibration_size": -1,
+            "calibration_format": "Numpy"
+        },
+        {
+          "tensor_name": "tone",
+          "calibration_dataset": "/home/yrz/Codes/melotts.axera/model_convert/calibration_dataset/tone.tar.gz",
+          "calibration_size": -1,
+          "calibration_format": "Numpy"
+        },
+        {
+          "tensor_name": "language",
+          "calibration_dataset": "/home/yrz/Codes/melotts.axera/model_convert/calibration_dataset/language.tar.gz",
+          "calibration_size": -1,
+          "calibration_format": "Numpy"
+        }
+      ],
+      "layer_configs": [
+       {
+              "start_tensor_names": ["DEFAULT"], 
+              "end_tensor_names": ["DEFAULT"], 
+              "data_type": "U16"
+        },
+        {
+              "op_type": "Tanh",
+              "data_type": "U8"
+        },
+        {
+            "op_type": "Exp",
+            "data_type": "U16"
+      }   
+      ],
+      "transformer_opt_level": 1,
+      "precision_analysis": true,
+      "precision_analysis_method":"EndToEnd"
+    },
+    "input_processors": [
+        {
+          "tensor_name": "x",
+          "src_dtype": "S32"
+        },
+        {
+          "tensor_name": "x_len",
+          "src_dtype": "S32"
+        },
+        {
+          "tensor_name": "g",
+          "src_dtype": "FP32"
+        },
+        {
+            "tensor_name": "tone",
+            "src_dtype": "S32"
+        },
+        {
+            "tensor_name": "language",
+            "src_dtype": "S32"
+        }
+      ],
+    "compiler": {
+      "check": 2
+    }
+  }
+  

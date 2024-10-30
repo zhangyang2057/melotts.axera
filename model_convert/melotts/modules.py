@@ -186,16 +186,19 @@ class WN(torch.nn.Module):
         output = torch.zeros_like(x)
         n_channels_tensor = torch.IntTensor([self.hidden_channels])
 
-        if g is not None:
-            g = self.cond_layer(g)
+        # if g is not None:
+        #     g = self.cond_layer(g)
+        g = self.cond_layer(g)
 
         for i in range(self.n_layers):
             x_in = self.in_layers[i](x)
-            if g is not None:
-                cond_offset = i * 2 * self.hidden_channels
-                g_l = g[:, cond_offset : cond_offset + 2 * self.hidden_channels, :]
-            else:
-                g_l = torch.zeros_like(x_in)
+            # if g is not None:
+            #     cond_offset = i * 2 * self.hidden_channels
+            #     g_l = g[:, cond_offset : cond_offset + 2 * self.hidden_channels, :]
+            # else:
+            #     g_l = torch.zeros_like(x_in)
+            cond_offset = i * 2 * self.hidden_channels
+            g_l = g[:, cond_offset : cond_offset + 2 * self.hidden_channels, :]
 
             acts = commons.fused_add_tanh_sigmoid_multiply(x_in, g_l, n_channels_tensor)
             acts = self.drop(acts)

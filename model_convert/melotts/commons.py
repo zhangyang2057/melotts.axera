@@ -134,7 +134,8 @@ def generate_path(duration, mask):
     """
 
     b, _, t_y, t_x = mask.shape
-    cum_duration = torch.cumsum(duration, -1)
+    # cum_duration = torch.cumsum(duration, -1)
+    cum_duration = duration.matmul(torch.tril(torch.ones(t_x, t_x)).T)
 
     cum_duration_flat = cum_duration.view(b * t_x)
     path = sequence_mask(cum_duration_flat, t_y).to(mask.dtype)

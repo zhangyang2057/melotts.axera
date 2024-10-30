@@ -42,8 +42,8 @@ LANG_TO_HF_REPO_ID = {
 }
 
 PROXIES = {
-    "HTTP": "127.0.0.1:7890",
-    "HTTPS": "127.0.0.1:7890"
+    "HTTP": "10.126.34.192:7890",
+    "HTTPS": "10.126.34.192:7890"
 }
 
 class HParams:

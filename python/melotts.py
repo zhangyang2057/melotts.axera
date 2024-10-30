@@ -210,21 +210,29 @@ def main():
 
     ymaskseg = ymaskseg.flatten()
     g = g.flatten()
+    take_time = 0
     while(i+segsize<=mellen):
         segz = zp[:,:,i:i+segsize]
         i += segsize-2*padsize
         
         segz = segz.flatten()
+        start = time.time()
         x = sessf.run(input_feed={'z': segz, 'ymask': ymaskseg, 'g': g})
+        print(f"flow run take {1000 * (time.time() - start)}ms")
+        take_time += 1000 * (time.time() - start)
         flowout = x["6797"].flatten()
 
+        start = time.time()
         x = sessd.run(input_feed={'z': flowout, 'g': g})
+        print(f"decoder run take {1000 * (time.time() - start)}ms")
+        take_time += 1000 * (time.time() - start)
 
         wav = np.array(x["827"], dtype=np.float32).flatten()
         wav *= 5
         wavlist.append(wav[padsize*512:-padsize*512])
         # wavlist.append(wav)
 
+    print(f"flow and decoder take {take_time}ms")
     wavlist = np.array(wavlist).flatten()
     # wavlist = audio_numpy_concat(wavlist, sr=sample_rate, speed=speed)    
     outfile = args.wav

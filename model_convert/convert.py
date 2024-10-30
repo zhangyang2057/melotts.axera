@@ -25,9 +25,9 @@ def main():
     language = get_args().language
     config_path = "config.json"
     ckpt_path = "checkpoint.pth"
-    phone_len = 64
+    phone_len = 256
 
-    tts = TTS(language=language, x_len=phone_len, config_path=config_path, ckpt_path=ckpt_path)
+    tts = TTS(language=language, x_len=phone_len, config_path=config_path, ckpt_path=ckpt_path, device="cpu")
 
     # speaker_id = 1
     
@@ -37,11 +37,11 @@ def main():
     with torch.no_grad():
         phones = torch.zeros(phone_len, dtype=torch.int32)
         tones = torch.randint(1, 5, size=(phone_len,), dtype=torch.int32)
+        g = torch.rand(1, 256, 1)
         lang_ids = torch.zeros(phone_len, dtype=torch.int32) + 1
-        noise_scale = torch.FloatTensor([0.667])
-        noise_scale_w = torch.FloatTensor([0.8])
-        length_scale = torch.FloatTensor([1])
-        sdp_ratio = torch.FloatTensor([0])
+        # noise_scale = torch.FloatTensor([0.667])
+        # noise_scale_w = torch.FloatTensor([0.8])
+        # length_scale = torch.FloatTensor([1])
 
         # def forward(
         #     self,
@@ -52,22 +52,65 @@ def main():
         #     sid,
         # ):
         inputs = (
-            phones, torch.IntTensor([phone_len]), tones, lang_ids, noise_scale, noise_scale_w, length_scale, sdp_ratio
+            phones, torch.IntTensor([phone_len]), g, tones, lang_ids
         )
 
         # Export the model
+        encoder_name = "encoder.onnx"
+        tts.model.forward = tts.model.enc_forward
         torch.onnx.export(tts.model,               # model being run
                         inputs,                         # model input (or a tuple for multiple inputs)
-                        "melotts.onnx",   # where to save the model (can be a file or file-like object)
+                        encoder_name,   # where to save the model (can be a file or file-like object)
                         export_params=True,        # store the trained parameter weights inside the model file
                         opset_version=16,          # the ONNX version to export the model to
                         do_constant_folding=True,  # whether to execute constant folding for optimization
-                        input_names = ['x', 'x_len', 'tone', 'language', 'noise_scale', 'noise_scale_w', 'length_scale', 'sdp_ratio'],   # the model's input names
-                        output_names = ['audio', 'audio_len'], # the model's output names
+                        input_names = ['x', 'x_len', 'g', 'tone', 'language'],   # the model's input names
+                        output_names = ['z_p', 'y_mask', 'audio_len'], # the model's output names
                         )
-        sim_model,_ = onnxsim.simplify("melotts.onnx")
-        onnx.save(sim_model, "melotts-sim.onnx")
-        print("Save to melotts-sim.onnx")
+        sim_model,_ = onnxsim.simplify(encoder_name)
+        onnx.save(sim_model, encoder_name)
+        print(f"Save to {encoder_name}")
+
+        # Export the model
+        dec_len = 120
+        inputs = (
+            torch.rand(1, 192, dec_len), torch.rand(1, 1, dec_len), g
+        )
+        flow_name = "flow.onnx"
+        tts.model.forward = tts.model.flow_forward
+        torch.onnx.export(tts.model,               # model being run
+                        inputs,                         # model input (or a tuple for multiple inputs)
+                        flow_name,   # where to save the model (can be a file or file-like object)
+                        export_params=True,        # store the trained parameter weights inside the model file
+                        opset_version=16,          # the ONNX version to export the model to
+                        do_constant_folding=True,  # whether to execute constant folding for optimization
+                        input_names = ['z_p', 'y_mask', 'g'],   # the model's input names
+                        output_names = ['z'], # the model's output names
+                        )
+        sim_model,_ = onnxsim.simplify(flow_name)
+        onnx.save(sim_model, flow_name)
+        print(f"Save to {flow_name}")
+
+
+        # Export the model
+        dec_len = 120
+        inputs = (
+            torch.rand(1, 192, dec_len), g
+        )
+        decoder_name = "decoder.onnx"
+        tts.model.forward = tts.model.dec_forward
+        torch.onnx.export(tts.model,               # model being run
+                        inputs,                         # model input (or a tuple for multiple inputs)
+                        decoder_name,   # where to save the model (can be a file or file-like object)
+                        export_params=True,        # store the trained parameter weights inside the model file
+                        opset_version=16,          # the ONNX version to export the model to
+                        do_constant_folding=True,  # whether to execute constant folding for optimization
+                        input_names = ['z', 'g'],   # the model's input names
+                        output_names = ['audio'], # the model's output names
+                        )
+        sim_model,_ = onnxsim.simplify(decoder_name)
+        onnx.save(sim_model, decoder_name)
+        print(f"Save to {decoder_name}")
 
 
 if __name__ == "__main__":

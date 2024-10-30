@@ -17,6 +17,7 @@ from .download_utils import load_or_download_config, load_or_download_model
 from .text import cleaned_text_to_sequence, get_bert
 from .text.cleaner import clean_text
 from .commons import intersperse
+import tarfile
 
 def get_text_for_tts_infer(text, language_str, hps, device, symbol_to_id=None):
     norm_text, phone, tone, word2ph = clean_text(text, language_str)
@@ -122,7 +123,7 @@ class TTS(nn.Module):
             print(" > ===========================")
         return texts
 
-    def tts_to_file(self, text, speaker_id, output_path=None, sdp_ratio=0.2, noise_scale=0.6, noise_scale_w=0.8, speed=1.0, pbar=None, format=None, position=None, quiet=False,):
+    def tts_to_file(self, text, speaker_id, output_path=None, sdp_ratio=0.2, noise_scale=0.6, noise_scale_w=0.8, speed=1.0, pbar=None, format=None, position=None, quiet=False, save_data=False):
         language = self.language
         # texts = self.split_sentences_into_pieces(text, language, quiet)
         texts = [text]
@@ -136,6 +137,15 @@ class TTS(nn.Module):
                 tx = texts
             else:
                 tx = tqdm(texts)
+
+        input_names = ['x', 'x_len', 'g', 'tone', 'language', 'z_p', 'y_mask', 'z']
+        if save_data:
+            calib_dataset_root = "calibration_dataset"
+            tar_files = {}
+            for name in input_names:
+                os.makedirs(f"{calib_dataset_root}/{name}", exist_ok=True)
+                tar_files[name] = tarfile.open(f"{calib_dataset_root}/{name}.tar.gz", "w:gz")
+
         for t in tx:
             if language in ['EN', 'ZH_MIX_EN']:
                 t = re.sub(r'([a-z])([A-Z])', r'\1 \2', t)
@@ -147,6 +157,7 @@ class TTS(nn.Module):
             bert = torch.zeros(1024, phone_len)
             ja_bert = torch.zeros(768, phone_len)
             nslice = int(np.ceil(phones.size(0) * 1.0 / phone_len))
+            g = self.model.emb_g(torch.IntTensor([speaker_id])).unsqueeze(-1)
             print(f"phones.size() = {phones.size(0)}")
             with torch.no_grad():
                 for i in range(nslice):
@@ -162,6 +173,7 @@ class TTS(nn.Module):
                     print(f"phones_slice: {phones_slice.size()}")
                     print(f"tones_slice: {tones_slice.size()}")
                     print(f"langids_slice: {langids_slice.size()}")
+                    print(f"g.size() = {g.size()}")
 
                     # x_tst = phones.to(device).unsqueeze(0)
                     # tones = tones.to(device).unsqueeze(0)
@@ -175,20 +187,74 @@ class TTS(nn.Module):
                     x_tst_lengths = torch.LongTensor([slice_len]).to(device)
                     # del phones
                     speakers = torch.LongTensor([speaker_id]).to(device)
-                    audio, audio_size = self.model.forward(
-                            phones_slice,
-                            x_tst_lengths,
-                            tones_slice,
-                            langids_slice,
-                        )
-                    audio = audio[0, 0].data.cpu().float().numpy()
-                    audio_size = audio_size.item()
+
+                    z_p, y_mask, audio_len = self.model.enc_forward(
+                        phones_slice,
+                        x_tst_lengths,
+                        g,
+                        tones_slice,
+                        langids_slice
+                    )
+
+                    dec_len = 120
+                    sub_audio_len = 0
+                    for n in range(z_p.size(-1) // dec_len):
+                        z_p_slice = z_p[..., n * dec_len : (n+1) * dec_len]
+                        y_mask_slice = y_mask[..., n * dec_len : (n+1) * dec_len]
+                        z = self.model.flow_forward(z_p_slice, y_mask_slice, g)
+
+                        audio = self.model.dec_forward(z, g)
+
+                        audio = audio[0, 0].data.cpu().float().numpy()
+                        sub_audio_len += audio.shape[-1]
+
+                        if sub_audio_len > audio_len.item():
+                            audio_list.append(audio[: sub_audio_len - audio_len.item() // dec_len * dec_len])
+                            break
+                        else:
+                            audio_list.append(audio)
+                        
+                        if save_data:
+                            np.save(f"{calib_dataset_root}/z_p/{i}_{n}.npy", z_p_slice.numpy().astype(np.float32))
+                            np.save(f"{calib_dataset_root}/y_mask/{i}_{n}.npy", y_mask_slice.numpy().astype(np.float32))
+                            np.save(f"{calib_dataset_root}/z/{i}_{n}.npy", z_p_slice.numpy().astype(np.float32))
+
+                            tar_files["z_p"].add(f"{calib_dataset_root}/z_p/{i}_{n}.npy")
+                            tar_files["y_mask"].add(f"{calib_dataset_root}/y_mask/{i}_{n}.npy")
+                            tar_files["z"].add(f"{calib_dataset_root}/z/{i}_{n}.npy")
+
+                    # audio, audio_size = self.model.forward(
+                    #         phones_slice,
+                    #         x_tst_lengths,
+                    #         g,
+                    #         tones_slice,
+                    #         langids_slice,
+                    #     )
+                    # audio = audio[0, 0].data.cpu().float().numpy()
+                    # audio_size = audio_size.item()
                     # del x_tst, tones, lang_ids, bert, ja_bert, x_tst_lengths, speakers
                         # 
-                    audio = audio[:audio_size]
-                    audio_list.append(audio)
-                    print(f"audio.size: {audio.shape[-1]}")
+                    # audio = audio[:audio_size]
+                    # audio_list.append(audio)
+                    # print(f"audio.size: {audio.shape[-1]}")
+
+                    if save_data:
+                        np.save(f"{calib_dataset_root}/x/{i}.npy", phones_slice.numpy().flatten().astype(np.int32))
+                        np.save(f"{calib_dataset_root}/x_len/{i}.npy", x_tst_lengths.numpy().flatten().astype(np.int32))
+                        np.save(f"{calib_dataset_root}/g/{i}.npy", g.numpy().astype(np.float32))
+                        np.save(f"{calib_dataset_root}/tone/{i}.npy", tones_slice.numpy().flatten().astype(np.int32))
+                        np.save(f"{calib_dataset_root}/language/{i}.npy", langids_slice.numpy().flatten().astype(np.int32))
+
+                        tar_files["x"].add(f"{calib_dataset_root}/x/{i}.npy")
+                        tar_files["x_len"].add(f"{calib_dataset_root}/x_len/{i}.npy")
+                        tar_files["g"].add(f"{calib_dataset_root}/g/{i}.npy")
+                        tar_files["tone"].add(f"{calib_dataset_root}/tone/{i}.npy")
+                        tar_files["language"].add(f"{calib_dataset_root}/language/{i}.npy")
                     
+        if save_data:
+            for name in input_names:
+                tar_files[name].close()
+
         torch.cuda.empty_cache()
         audio = self.audio_numpy_concat(audio_list, sr=self.hps.data.sampling_rate, speed=speed)
 
