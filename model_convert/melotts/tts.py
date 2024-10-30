@@ -196,7 +196,7 @@ class TTS(nn.Module):
                         langids_slice
                     )
 
-                    dec_len = 120
+                    dec_len = 128
                     sub_audio_len = 0
                     for n in range(z_p.size(-1) // dec_len):
                         z_p_slice = z_p[..., n * dec_len : (n+1) * dec_len]
