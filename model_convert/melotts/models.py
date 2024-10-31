@@ -1152,7 +1152,7 @@ class SynthesizerTrn(nn.Module):
         
         w_ceil = torch.ceil(w)
 
-        y_lengths = torch.clamp_min(torch.sum(w_ceil, [1, 2]), 1).long()
+        y_lengths = torch.clamp_min(torch.sum(w_ceil, [1, 2]), 1).int()
         y_mask = torch.unsqueeze(commons.sequence_mask(y_lengths, self.max_duration * phone_len), 1).to(
             x_mask.dtype
         )

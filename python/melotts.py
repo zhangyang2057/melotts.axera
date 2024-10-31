@@ -1,96 +1,23 @@
 import numpy as np
-import onnxruntime as ort
 import soundfile
 from axengine import InferenceSession
 import argparse
 import time
+from utils import *
+import math
 
 
-def get_argparser():
+def get_args():
     parser = argparse.ArgumentParser(
-        prog="onnx_infer_stream",
+        prog="melotts",
         description="Run TTS on input sentence"
     )
     parser.add_argument("--sentence", "-s", type=str, required=False, default="爱芯元智半导体股份有限公司，致力于打造世界领先的人工智能感知与边缘计算芯片。服务智慧城市、智能驾驶、机器人的海量普惠的应用")
     parser.add_argument("--wav", "-w", type=str, required=False, default="test_cn.wav")
-    parser.add_argument("--speed", type=float, required=False, default=1.0)
     parser.add_argument("--sample_rate", "-sr", type=int, required=False, default=44100)
-    return parser
-
-
-def load_pinyin_dict(file_path="../models/melo_lexicon_zh.txt"):
-    '''
-    读取发音字典 格式为
-    单词#phone1 空格 phone2#tone1 空格 tone2
-    '''
-    pinyin_dict = {}
-    with open(file_path, 'r', encoding='utf-8') as file:
-        for line in file:
-            parts = line.strip().split('#')
-            if len(parts) > 1:
-                character = parts[0]
-                pinyin_parts = parts[1].split()
-                tone = parts[-1]
-                pinyin_dict[character] = (pinyin_parts, tone)
-    return pinyin_dict
-
-
-def get_pinyin_and_tones(sentence, pinyin_dict):
-    '''
-    输入句子和发音字典
-    返回对应的拼音列表和音调列表
-    '''
-    pinyin_list = []
-    tone_list = []
-    for char in sentence:
-        if char in pinyin_dict:
-            pinyin, tone = pinyin_dict[char]
-            pinyin_list.append(pinyin)
-            tone_list.append(tone)
-        else:
-            pinyin_list.append(char)
-            tone_list.append('')  # 若找不到对应拼音，音调留空
-
-    pinyin_list = [item for sublist in pinyin_list for item in sublist]
-    tone_list = [item for sublist in tone_list for item in sublist]
-    tone_list_ = []
-    for x in tone_list:
-        tones = x.split()
-        for xx in tones:
-            tone_list_.append(int(xx))
-    tone_list = tone_list_
-    return pinyin_list, tone_list
-
-
-def load_syllable_dict(file_path="../models/melo_tokens.txt"):
-    syllable_dict = {}
-    with open(file_path, 'r', encoding='utf-8') as file:
-        for line in file:
-            parts = line.strip().split()
-            if len(parts) == 2:
-                syllable = parts[0]
-                number = parts[1]
-                syllable_dict[syllable] = int(number)
-    return syllable_dict
-
-
-def replace_syllables_with_numbers(array, syllable_dict):
-    return [syllable_dict.get(item, item) for item in array]
-
-
-def insert_zeros(arr):
-    '''
-    输入 1 2 3
-    输出0 1 0 2 0 3 0
-    '''
-    # 计算插入0后新数组的长度
-    new_length = len(arr) * 2
-    # 创建新数组，初始值全部为0
-    new_arr = np.zeros(new_length, dtype=arr.dtype)
-    # 将原始数组的值按顺序插入到新数组中
-    new_arr[1::2] = arr
-    new_arr = np.append(new_arr,0)
-    return new_arr
+    parser.add_argument("--lexicon", type=str, required=False, default="../models/lexicon.txt")
+    parser.add_argument("--token", type=str, required=False, default="../models/tokens.txt")
+    return parser.parse_args()
 
 
 def audio_numpy_concat(segment_data_list, sr, speed=1.):
@@ -103,142 +30,81 @@ def audio_numpy_concat(segment_data_list, sr, speed=1.):
 
 
 def main():
-    args = get_argparser().parse_args()
-    # 输入句子
+    args = get_args()
     sentence = args.sentence
-    print(f"sentence: {sentence}")
-    
-
-    speed = args.speed
     sample_rate = args.sample_rate
-
-    print(f"speed: {speed}")
+    lexicon_filename = args.lexicon
+    token_filename = args.token
+    print(f"sentence: {sentence}")
     print(f"sample_rate: {sample_rate}")
+    print(f"lexicon: {lexicon_filename}")
+    print(f"token: {token_filename}")
 
-    # 加载拼音字典
-    pinyin_dict = load_pinyin_dict()
+    # Load lexicon
+    lexicon = Lexicon(lexicon_filename, token_filename)
 
-    
-    
-    # 获取拼音和音调列表
-    pinyin_list, tone_list = get_pinyin_and_tones(sentence, pinyin_dict)
+    # Convert sentence to phones and tones
+    phones, tones = lexicon.convert(sentence)
 
-    # print("拼音列表:", pinyin_list)
-    # print("音调列表:", tone_list)
+    # Add blank between words
+    phones = np.array(intersperse(phones, 0), dtype=np.int32)
+    tones = np.array(intersperse(tones, 0), dtype=np.int32)
+    total_phone_len = phones.shape[-1]
 
+    # Load models
+    enc_model = "../models/encoder.axmodel"
+    dec_model = "../models/flow_dec.axmodel"
 
-    syllable_dict = load_syllable_dict()
+    sess_enc = InferenceSession.load_from_model(enc_model)
+    sess_dec = InferenceSession.load_from_model(dec_model)
 
-    # 替换音节为对应数字
-    replaced_array = replace_syllables_with_numbers(pinyin_list, syllable_dict)
+    enc_len = 256
+    dec_len = 128
+    enc_slice_num = int(math.ceil(total_phone_len / enc_len))
 
-    # print("替换后的数组:", replaced_array)
+    # Load static input
+    g = np.fromfile("../models/g.bin", dtype=np.float32)
+    language = np.array([3] * enc_len, dtype=np.int32)
 
-    replaced_array = np.pad(replaced_array, pad_width=1, mode='constant', constant_values=0)
-    tone_array = np.pad(tone_list, pad_width=1, mode='constant', constant_values=0)
-    langids = np.zeros_like(tone_array) + 3
+    audio_list = []
+    for i in range(enc_slice_num):
+        phone_slice = phones[i * enc_len : (i+1) * enc_len]
+        tone_slice = tones[i * enc_len : (i+1) * enc_len]
+        actual_phone_len = len(phone_slice)
 
-    # print("pad phone:", replaced_array)
-    # print("pad tone:", tone_array)
-    # print("langids:", langids)
+        # Pad input
+        if actual_phone_len < enc_len:
+            phone_slice = np.append(phone_slice, np.zeros((enc_len - actual_phone_len,), dtype=np.int32))
+            tone_slice = np.append(tone_slice, np.zeros((enc_len - actual_phone_len,), dtype=np.int32))
 
+        actual_phone_len = np.array([actual_phone_len], dtype=np.int32)
+        x = sess_enc.run(input_feed={"x": phone_slice, 
+                          "x_len": actual_phone_len,
+                          "g": g,
+                          "tone": tone_slice,
+                          "language": language
+                          })
+        z_p, y_mask, audio_len = x["z_p"], x["y_mask"], int(x["audio_len"][0])
+        print(f"x: {x}")
 
-    x_tst = insert_zeros(replaced_array).reshape((1,-1))
-    xlen = len(x_tst[0])
-    tones = insert_zeros(tone_array).reshape((1,-1))
-    langids = insert_zeros(langids).reshape((1,-1))
-
-    
-
-    x_tst = np.array(x_tst,dtype=np.int64)
-    xlen = np.array([xlen],dtype=np.int64)
-    tones = np.array(tones,dtype=np.int64)
-
-    langids = np.zeros_like(x_tst) + 3
-    langids =np.array(langids,dtype=np.int64)
-    bert = np.zeros((1,1024,len(x_tst[0])),dtype=np.float32)
-    jabert = np.zeros((1,768,len(x_tst[0])),dtype=np.float32)
-
-    # print(f"xlen: {xlen}")
-    # print(f"langids len")
-    # print("insert_zeros phone:", x_tst)
-    # print("insert_zeros tone:", tones)
-    # print("insert_zeros langids:", langids)
-
-
-    #-------------------------------------推理enc
-    onnx_model = "../models/enc-sim.onnx"
-
-    providers = ['CPUExecutionProvider']
-    sess_options = ort.SessionOptions()
-    sess = ort.InferenceSession(
-        onnx_model, providers=providers, sess_options=sess_options)
-
-    g = np.fromfile('../models/g.bin',dtype=np.float32).reshape(1,256,1)
-    start = time.time()
-    x = sess.run(None, input_feed={'x_tst': x_tst, 'x_tst_l': xlen, 'g': g,
-                                'tones': tones, 'langids': langids, 'bert': bert, 'jabert': jabert,
-                                'noise_scale': np.array([0.3], dtype=np.float32),
-                                'length_scale': np.array([1.0 / speed], dtype=np.float32),
-                                'noise_scale_w': np.array([0.6], dtype=np.float32),
-                                'sdp_ratio': np.array([0.2], dtype=np.float32)})
-    print(f"encoder run take {1000 * (time.time() - start)}ms")
-
-    zp,ymask = x[0],x[1] # zp 1 192 mellen  ymask 1 1 mellen 全为1
-
-    # print(f"zp.size: {zp.shape}")
-    # print(f"ymask.size: {ymask.flatten().shape[0]}")
-    # zp.flatten().tofile("zp.bin")
-    # ymask.flatten().tofile("ymask.bin")
-
-    #-------------------------------------推理dec和flow
-    dec_model = "../models/decoder.axmodel"
-    flow_model = "../models/flow.axmodel"
-
-    sessd = InferenceSession.load_from_model(dec_model)
-
-    sessf = InferenceSession.load_from_model(flow_model)
-
-    mellen = ymask.shape[2]
-    print(f"mellen: {mellen}")
-    segsize = 120
-    padsize = 10
-
-    ymaskseg = np.ones((1,1,segsize),dtype=np.float32)
-    wavlist = []
-    i = 0
-
-    ymaskseg = ymaskseg.flatten()
-    g = g.flatten()
-    take_time = 0
-    while(i+segsize<=mellen):
-        segz = zp[:,:,i:i+segsize]
-        i += segsize-2*padsize
+        print(f"audio_len: {audio_len}")
         
-        segz = segz.flatten()
-        start = time.time()
-        x = sessf.run(input_feed={'z': segz, 'ymask': ymaskseg, 'g': g})
-        print(f"flow run take {1000 * (time.time() - start)}ms")
-        take_time += 1000 * (time.time() - start)
-        flowout = x["6797"].flatten()
+        for n in range(y_mask.shape[-1] // dec_len):
+            audio = sess_dec.run(input_feed={"z_p": z_p[..., n * dec_len : (n+1) * dec_len],
+                              "y_mask": y_mask[..., n * dec_len : (n+1) * dec_len],
+                              "g": g
+                              })["audio"]
+            sub_audio_len = audio.shape[-1] * (n + 1)
+            if sub_audio_len > audio_len:
+                audio = audio[:audio_len - sub_audio_len]
+                audio_list.append(audio)
+                break
+            else:
+                audio_list.append(audio)
 
-        start = time.time()
-        x = sessd.run(input_feed={'z': flowout, 'g': g})
-        print(f"decoder run take {1000 * (time.time() - start)}ms")
-        take_time += 1000 * (time.time() - start)
-
-        wav = np.array(x["827"], dtype=np.float32).flatten()
-        wav *= 5
-        wavlist.append(wav[padsize*512:-padsize*512])
-        # wavlist.append(wav)
-
-    print(f"flow and decoder take {take_time}ms")
-    wavlist = np.array(wavlist).flatten()
-    # wavlist = audio_numpy_concat(wavlist, sr=sample_rate, speed=speed)    
-    outfile = args.wav
-    soundfile.write(outfile, wavlist, sample_rate)
-    print(f"Save to {outfile}")
-
+    audio = audio_numpy_concat(audio_list, sr=sample_rate)
+    soundfile.write(args.wav, audio, sample_rate)
+    print(f"Save to {args.wav}")
 
 if __name__ == "__main__":
     main()
