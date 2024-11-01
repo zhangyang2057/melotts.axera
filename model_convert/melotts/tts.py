@@ -170,10 +170,10 @@ class TTS(nn.Module):
                         tones_slice = F.pad(tones_slice, (0, phone_len - slice_len), mode="constant", value=0)
                         langids_slice = F.pad(langids_slice, (0, phone_len - slice_len), mode="constant", value=0)
 
-                    print(f"phones_slice: {phones_slice.size()}")
-                    print(f"tones_slice: {tones_slice.size()}")
-                    print(f"langids_slice: {langids_slice.size()}")
-                    print(f"g.size() = {g.size()}")
+                    # print(f"phones_slice: {phones_slice.size()}")
+                    # print(f"tones_slice: {tones_slice.size()}")
+                    # print(f"langids_slice: {langids_slice.size()}")
+                    # print(f"g.size() = {g.size()}")
 
                     # x_tst = phones.to(device).unsqueeze(0)
                     # tones = tones.to(device).unsqueeze(0)
@@ -195,21 +195,21 @@ class TTS(nn.Module):
                         tones_slice,
                         langids_slice
                     )
+                    audio_len = audio_len.item()
 
                     dec_len = 128
                     sub_audio_len = 0
                     for n in range(z_p.size(-1) // dec_len):
                         z_p_slice = z_p[..., n * dec_len : (n+1) * dec_len]
                         y_mask_slice = y_mask[..., n * dec_len : (n+1) * dec_len]
-                        z = self.model.flow_forward(z_p_slice, y_mask_slice, g)
-
-                        audio = self.model.dec_forward(z, g)
-
+                        audio = self.model.flow_dec_forward(z_p_slice, y_mask_slice, g)
                         audio = audio[0, 0].data.cpu().float().numpy()
                         sub_audio_len += audio.shape[-1]
 
-                        if sub_audio_len > audio_len.item():
-                            audio_list.append(audio[: sub_audio_len - audio_len.item() // dec_len * dec_len])
+                        if sub_audio_len > audio_len:
+                            print(f"sub_audio_len: {sub_audio_len}")
+                            print(f"audio_len: {audio_len}")
+                            audio_list.append(audio[: audio_len - audio_len // audio.shape[-1] * audio.shape[-1]])
                             break
                         else:
                             audio_list.append(audio)

@@ -96,7 +96,7 @@ def main():
                               })["audio"]
             sub_audio_len = audio.shape[-1] * (n + 1)
             if sub_audio_len > audio_len:
-                audio = audio[:audio_len - sub_audio_len]
+                audio = audio[:audio_len - audio_len // audio.shape[-1] * audio.shape[-1]]
                 audio_list.append(audio)
                 break
             else:
