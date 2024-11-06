@@ -75,7 +75,7 @@ def main():
     audio_list = []
 
     # Padding for static decoder shape
-    pad_size = dec_len // 7
+    pad_size = max(dec_len // 7, 16)
 
     # Iterate over splitted sentences
     for n, se in enumerate(sens):
