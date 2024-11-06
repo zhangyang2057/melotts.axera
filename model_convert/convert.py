@@ -1,10 +1,11 @@
 import argparse
-from .melotts.download_utils import load_or_download_config, load_or_download_model
+from melotts.download_utils import load_or_download_config, load_or_download_model
 from melotts.tts import TTS
 import torch
 import onnx, onnxsim
 import numpy as np
 import os
+import json
 
 
 def get_args():
@@ -17,13 +18,21 @@ def get_args():
         choices=["EN", "FR", "JP", "ES", "ZH", "KR"],
         help="target language for TTS",
     )
+    parser.add_argument(
+        "-d",
+        "--dec_len",
+        type=int,
+        default=128,
+        help="decoder input length",
+    )
 
     args = parser.parse_args()
     return args
 
 
 def main():
-    language = get_args().language
+    args = get_args()
+    language = args.language
     config_path = "config.json"
     ckpt_path = "checkpoint.pth"
     device = "cpu"
@@ -32,10 +41,19 @@ def main():
     if not os.path.exists(ckpt_path):
         load_or_download_model(locale=language, device=device)
 
-    tts = TTS(language=language, dec_len=128, config_path=config_path, ckpt_path=ckpt_path, device=device)
+    with open(config_path, "r") as f:
+        config = json.load(f)
+        speaker_id = config["data"]["spk2id"][language]
 
-    phone_len = 256
+        print(f"speaker_id: {speaker_id}")
+
+    tts = TTS(language=language, dec_len=args.dec_len, config_path=config_path, ckpt_path=ckpt_path, device=device)
+
+    print(f"Generating calibration dataset...")
+    tts.generate_data(text="爱芯元智半导体股份有限公司，致力于打造世界领先的人工智能感知与边缘计算芯片。服务智慧城市、智能驾驶、机器人的海量普惠的应用", speaker_id=speaker_id)
+
     with torch.no_grad():
+        phone_len = 256
         phones = torch.zeros(phone_len, dtype=torch.int32)
         tones = torch.randint(1, 5, size=(phone_len,), dtype=torch.int32)
         g = torch.rand(1, 256, 1)
@@ -69,7 +87,7 @@ def main():
                         )
         sim_model,_ = onnxsim.simplify(encoder_name)
         onnx.save(sim_model, encoder_name)
-        print(f"Save to {encoder_name}")
+        print(f"Export encoder to {encoder_name}")
 
         # Export the model
         dec_len = tts.model.dec_len
@@ -89,7 +107,7 @@ def main():
                         )
         sim_model,_ = onnxsim.simplify(decoder_name)
         onnx.save(sim_model, decoder_name)
-        print(f"Save to {decoder_name}")
+        print(f"Export decoder to {decoder_name}")
 
 
 if __name__ == "__main__":
