@@ -1,6 +1,7 @@
 import numpy as np
 import soundfile
 from axengine import InferenceSession
+import onnxruntime as ort
 import argparse
 import time
 from utils import *
@@ -13,7 +14,7 @@ def get_args():
         description="Run TTS on input sentence"
     )
     parser.add_argument("--sentence", "-s", type=str, required=False, default="爱芯元智半导体股份有限公司，致力于打造世界领先的人工智能感知与边缘计算芯片。服务智慧城市、智能驾驶、机器人的海量普惠的应用")
-    parser.add_argument("--wav", "-w", type=str, required=False, default="test_cn.wav")
+    parser.add_argument("--wav", "-w", type=str, required=False, default="output.wav")
     parser.add_argument("--sample_rate", "-sr", type=int, required=False, default=44100)
     parser.add_argument("--lexicon", type=str, required=False, default="../models/lexicon.txt")
     parser.add_argument("--token", type=str, required=False, default="../models/tokens.txt")
@@ -40,6 +41,10 @@ def main():
     print(f"lexicon: {lexicon_filename}")
     print(f"token: {token_filename}")
 
+    enc_model = "../models/encoder.onnx"
+    dec_model = "../models/decoder.axmodel"
+    dec_len = 64
+
     # Load lexicon
     lexicon = Lexicon(lexicon_filename, token_filename)
 
@@ -52,55 +57,53 @@ def main():
     total_phone_len = phones.shape[-1]
 
     # Load models
-    enc_model = "../models/encoder.axmodel"
-    dec_model = "../models/flow_dec.axmodel"
-
-    sess_enc = InferenceSession.load_from_model(enc_model)
+    sess_enc = ort.InferenceSession(enc_model, providers=["CPUExecutionProvider"], sess_options=ort.SessionOptions())
     sess_dec = InferenceSession.load_from_model(dec_model)
 
-    enc_len = 256
-    dec_len = 128
-    enc_slice_num = int(math.ceil(total_phone_len / enc_len))
-
     # Load static input
-    g = np.fromfile("../models/g.bin", dtype=np.float32)
-    language = np.array([3] * enc_len, dtype=np.int32)
+    g = np.fromfile("../models/g.bin", dtype=np.float32).reshape(1,256,1)
+    language = np.array([3] * total_phone_len, dtype=np.int32)
 
+    start = time.time()
+    z_p, audio_len = sess_enc.run(None, input_feed={
+                                'phone': phones, 'g': g,
+                                'tone': tones, 'language': language, 
+                                'noise_scale': np.array([0], dtype=np.float32),
+                                'length_scale': np.array([1.0], dtype=np.float32),
+                                'noise_scale_w': np.array([0], dtype=np.float32),
+                                'sdp_ratio': np.array([0], dtype=np.float32)})
+    print(f"encoder run take {1000 * (time.time() - start)}ms")
+    
+    audio_len = audio_len[0]
+    dec_slice_num = int(np.ceil(z_p.shape[-1] / dec_len))
     audio_list = []
-    for i in range(enc_slice_num):
-        phone_slice = phones[i * enc_len : (i+1) * enc_len]
-        tone_slice = tones[i * enc_len : (i+1) * enc_len]
-        actual_phone_len = len(phone_slice)
+
+    print(f"phone_len: {total_phone_len}")
+    print(f"z_p.shape: {z_p.shape}")
+    print(f"dec_slice_num: {dec_slice_num}")
+    print(f"audio_len: {audio_len}")
+
+    for i in range(dec_slice_num):
+        z_p_slice = z_p[..., i * dec_len : (i + 1) * dec_len]
+        actual_size = z_p_slice.shape[-1]
 
         # Pad input
-        if actual_phone_len < enc_len:
-            phone_slice = np.append(phone_slice, np.zeros((enc_len - actual_phone_len,), dtype=np.int32))
-            tone_slice = np.append(tone_slice, np.zeros((enc_len - actual_phone_len,), dtype=np.int32))
+        if actual_size < dec_len:
+            z_p_slice = np.concatenate((z_p_slice, np.zeros((*z_p_slice.shape[:-1], dec_len - actual_size), dtype=np.float32)), axis=-1)
 
-        actual_phone_len = np.array([actual_phone_len], dtype=np.int32)
-        x = sess_enc.run(input_feed={"x": phone_slice, 
-                          "x_len": actual_phone_len,
-                          "g": g,
-                          "tone": tone_slice,
-                          "language": language
-                          })
-        z_p, y_mask, audio_len = x["z_p"], x["y_mask"], int(x["audio_len"][0])
-        print(f"x: {x}")
-
-        print(f"audio_len: {audio_len}")
-        
-        for n in range(y_mask.shape[-1] // dec_len):
-            audio = sess_dec.run(input_feed={"z_p": z_p[..., n * dec_len : (n+1) * dec_len],
-                              "y_mask": y_mask[..., n * dec_len : (n+1) * dec_len],
+        start = time.time()
+        audio = sess_dec.run(input_feed={"z_p": z_p_slice,
                               "g": g
                               })["audio"]
-            sub_audio_len = audio.shape[-1] * (n + 1)
-            if sub_audio_len > audio_len:
-                audio = audio[:audio_len - audio_len // audio.shape[-1] * audio.shape[-1]]
-                audio_list.append(audio)
-                break
-            else:
-                audio_list.append(audio)
+        print(f"decoder run take {1000 * (time.time() - start)}ms")
+
+        sub_audio_len = audio.shape[-1] * (i + 1)
+        if sub_audio_len > audio_len:
+            audio = audio[:audio_len - sub_audio_len]
+            audio_list.append(audio)
+            break
+        else:
+            audio_list.append(audio)
 
     audio = audio_numpy_concat(audio_list, sr=sample_rate)
     soundfile.write(args.wav, audio, sample_rate)

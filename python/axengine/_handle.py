@@ -56,7 +56,7 @@ class InferenceSession:
             list[np.ndarray]: Output of the models.
         """
         for i, input_name in enumerate(self.get_inputs()):
-            input_datum = input_feed[input_name]
+            input_datum = input_feed[input_name].flatten()
             self.feed_input_to_index(input_datum, i)
 
         # Forward
