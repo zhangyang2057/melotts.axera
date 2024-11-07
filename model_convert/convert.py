@@ -10,10 +10,10 @@ import json
 
 # proxies for huggingface
 PROXIES = None
-PROXIES = {
-    "http": "127.0.0.1:7890",
-    "https": "127.0.0.1:7890"
-}
+# PROXIES = {
+#     "http": "127.0.0.1:7890",
+#     "https": "127.0.0.1:7890"
+# }
 
 TEXT = {
     "ZH": "爱芯元智半导体股份有限公司，致力于打造世界领先的人工智能感知与边缘计算芯片。服务智慧城市、智能驾驶、机器人的海量普惠的应用",
