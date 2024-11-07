@@ -8,6 +8,13 @@ import os
 import json
 
 
+# proxies for huggingface
+PROXIES = None
+# PROXIES = {
+#     "HTTP": "127.0.0.1:7890",
+#     "HTTPS": "127.0.0.1:7890"
+# }
+
 def get_args():
     parser = argparse.ArgumentParser()
     parser.add_argument(
@@ -37,9 +44,9 @@ def main():
     ckpt_path = "checkpoint.pth"
     device = "cpu"
     if not os.path.exists(config_path):
-        load_or_download_config(locale=language)
+        load_or_download_config(locale=language, proxies=PROXIES)
     if not os.path.exists(ckpt_path):
-        load_or_download_model(locale=language, device=device)
+        load_or_download_model(locale=language, device=device, proxies=PROXIES)
 
     with open(config_path, "r") as f:
         config = json.load(f)
@@ -76,13 +83,13 @@ def main():
         encoder_name = "encoder.onnx"
         tts.model.forward = tts.model.enc_forward
         torch.onnx.export(tts.model,               # model being run
-                        inputs,                         # model input (or a tuple for multiple inputs)
-                        encoder_name,   # where to save the model (can be a file or file-like object)
+                        inputs,                    # model input (or a tuple for multiple inputs)
+                        encoder_name,              # where to save the model (can be a file or file-like object)
                         export_params=True,        # store the trained parameter weights inside the model file
                         opset_version=16,          # the ONNX version to export the model to
                         do_constant_folding=True,  # whether to execute constant folding for optimization
                         dynamic_axes=dynamic_axes,
-                        input_names = input_names,   # the model's input names
+                        input_names = input_names, # the model's input names
                         output_names = ['z_p', 'audio_len'], # the model's output names
                         )
         sim_model,_ = onnxsim.simplify(encoder_name)
@@ -97,13 +104,13 @@ def main():
         decoder_name = "decoder.onnx"
         tts.model.forward = tts.model.flow_dec_forward
         torch.onnx.export(tts.model,               # model being run
-                        inputs,                         # model input (or a tuple for multiple inputs)
-                        decoder_name,   # where to save the model (can be a file or file-like object)
+                        inputs,                    # model input (or a tuple for multiple inputs)
+                        decoder_name,              # where to save the model (can be a file or file-like object)
                         export_params=True,        # store the trained parameter weights inside the model file
                         opset_version=16,          # the ONNX version to export the model to
                         do_constant_folding=True,  # whether to execute constant folding for optimization
-                        input_names = ['z_p', 'g'],   # the model's input names
-                        output_names = ['audio'], # the model's output names
+                        input_names = ['z_p', 'g'],# the model's input names
+                        output_names = ['audio'],  # the model's output names
                         )
         sim_model,_ = onnxsim.simplify(decoder_name)
         onnx.save(sim_model, decoder_name)

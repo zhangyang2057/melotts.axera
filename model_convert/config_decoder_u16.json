@@ -5,13 +5,13 @@
     "input_configs": [
       {
         "tensor_name": "z_p",
-        "calibration_dataset": "/home/yrz/Codes/melotts.axera/model_convert/calibration_dataset/z_p.tar.gz",
+        "calibration_dataset": "./calibration_dataset/z_p.tar.gz",
         "calibration_size": -1,
         "calibration_format": "Numpy"
       },
       {
           "tensor_name": "g",
-          "calibration_dataset": "/home/yrz/Codes/melotts.axera/model_convert/calibration_dataset/g.tar.gz",
+          "calibration_dataset": "./calibration_dataset/g.tar.gz",
           "calibration_size": -1,
           "calibration_format": "Numpy"
       }

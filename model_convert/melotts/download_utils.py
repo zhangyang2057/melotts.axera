@@ -41,10 +41,6 @@ LANG_TO_HF_REPO_ID = {
     'KR': 'myshell-ai/MeloTTS-Korean',
 }
 
-PROXIES = {
-    "HTTP": "10.126.34.192:7890",
-    "HTTPS": "10.126.34.192:7890"
-}
 
 class HParams:
     def __init__(self, **kwargs):
@@ -86,23 +82,23 @@ def get_hparams_from_file(config_path):
     hparams = HParams(**config)
     return hparams
 
-def load_or_download_config(locale, use_hf=True, config_path=None):
+def load_or_download_config(locale, use_hf=True, config_path=None, proxies=None):
     if config_path is None:
         language = locale.split('-')[0].upper()
         if use_hf:
             assert language in LANG_TO_HF_REPO_ID
-            config_path = hf_hub_download(repo_id=LANG_TO_HF_REPO_ID[language], filename="config.json", proxies=PROXIES, local_dir=".")
+            config_path = hf_hub_download(repo_id=LANG_TO_HF_REPO_ID[language], filename="config.json", proxies=proxies, local_dir=".")
         else:
             assert language in DOWNLOAD_CONFIG_URLS
             config_path = cached_path(DOWNLOAD_CONFIG_URLS[language])
     return get_hparams_from_file(config_path)
 
-def load_or_download_model(locale, device, use_hf=True, ckpt_path=None):
+def load_or_download_model(locale, device, use_hf=True, ckpt_path=None, proxies=None):
     if ckpt_path is None:
         language = locale.split('-')[0].upper()
         if use_hf:
             assert language in LANG_TO_HF_REPO_ID
-            ckpt_path = hf_hub_download(repo_id=LANG_TO_HF_REPO_ID[language], filename="checkpoint.pth", proxies=PROXIES, local_dir=".")
+            ckpt_path = hf_hub_download(repo_id=LANG_TO_HF_REPO_ID[language], filename="checkpoint.pth", proxies=proxies, local_dir=".")
         else:
             assert language in DOWNLOAD_CKPT_URLS
             ckpt_path = cached_path(DOWNLOAD_CKPT_URLS[language])
