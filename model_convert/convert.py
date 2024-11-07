@@ -10,10 +10,15 @@ import json
 
 # proxies for huggingface
 PROXIES = None
-# PROXIES = {
-#     "HTTP": "127.0.0.1:7890",
-#     "HTTPS": "127.0.0.1:7890"
-# }
+PROXIES = {
+    "http": "127.0.0.1:7890",
+    "https": "127.0.0.1:7890"
+}
+
+TEXT = {
+    "ZH": "爱芯元智半导体股份有限公司，致力于打造世界领先的人工智能感知与边缘计算芯片。服务智慧城市、智能驾驶、机器人的海量普惠的应用",
+    "JP": "海の向こうには何があるの？"
+}
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -45,6 +50,15 @@ def main():
     device = "cpu"
     if not os.path.exists(config_path):
         load_or_download_config(locale=language, proxies=PROXIES)
+    else:
+        with open(config_path, "r") as f:
+            config = json.load(f)
+            support_langs = config["data"]["spk2id"].keys()
+        if language not in support_langs:
+            # Force redownload
+            load_or_download_config(locale=language, proxies=PROXIES)
+            load_or_download_model(locale=language, device=device, proxies=PROXIES)    
+
     if not os.path.exists(ckpt_path):
         load_or_download_model(locale=language, device=device, proxies=PROXIES)
 
@@ -57,7 +71,9 @@ def main():
     tts = TTS(language=language, dec_len=args.dec_len, config_path=config_path, ckpt_path=ckpt_path, device=device)
 
     print(f"Generating calibration dataset...")
-    tts.generate_data(text="爱芯元智半导体股份有限公司，致力于打造世界领先的人工智能感知与边缘计算芯片。服务智慧城市、智能驾驶、机器人的海量普惠的应用", speaker_id=speaker_id)
+    text = TEXT[language]
+    print(f"text: {text}")
+    tts.generate_data(text=text, speaker_id=speaker_id)
 
     with torch.no_grad():
         phone_len = 256
