@@ -12,13 +12,11 @@ public:
 
     int Init(const std::string& model_file);
 
-    std::vector<Ort::Value> Run(std::vector<int64_t>& x_tst, 
-                                int64_t x_tst_l, 
+    std::vector<Ort::Value> Run(std::vector<int>& phone, 
+                                std::vector<int>& tones,
+                                std::vector<int>& langids,
                                 std::vector<float>& g,
-                                std::vector<int64_t>& tones,
-                                std::vector<int64_t>& langids,
-                                std::vector<float>& bert,
-                                std::vector<float>& jabert,
+                                
                                 float noise_scale,
                                 float length_scale,
                                 float noise_scale_w,
