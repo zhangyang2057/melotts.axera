@@ -106,7 +106,7 @@ def main():
                         do_constant_folding=True,  # whether to execute constant folding for optimization
                         dynamic_axes=dynamic_axes,
                         input_names = input_names, # the model's input names
-                        output_names = ['z_p', 'audio_len'], # the model's output names
+                        output_names = ['z_p', 'pronoun_lens', 'audio_len'], # the model's output names
                         )
         sim_model,_ = onnxsim.simplify(encoder_name)
         onnx.save(sim_model, encoder_name)

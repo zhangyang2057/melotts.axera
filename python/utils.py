@@ -75,13 +75,13 @@ class Lexicon:
                 word_or_phrase = splits[0]
                 phone_tone_list = splits[1:]
                 assert len(phone_tone_list) & 1 == 0, len(phone_tone_list)
-                phones = phone_tone_list[: len(phone_tone_list) // 2]
-                phones = [tokens[p] for p in phones]
+                phone_str = phone_tone_list[: len(phone_tone_list) // 2]
+                phones = [tokens[p] for p in phone_str]
 
                 tones = phone_tone_list[len(phone_tone_list) // 2 :]
                 tones = [int(t) for t in tones]
 
-                lexicon[word_or_phrase] = (phones, tones)
+                lexicon[word_or_phrase] = (phone_str, phones, tones)
         lexicon["呣"] = lexicon["母"]
         lexicon["嗯"] = lexicon["恩"]
         self.lexicon = lexicon
@@ -90,42 +90,75 @@ class Lexicon:
         for p in punctuation:
             i = tokens[p]
             tone = 0
-            self.lexicon[p] = ([i], [tone])
-        self.lexicon[" "] = ([tokens["_"]], [0])
+            self.lexicon[p] = ([p], [i], [tone])
+        self.lexicon[" "] = ([" "], [tokens["_"]], [0])
 
     def _convert(self, text: str) -> Tuple[List[int], List[int]]:
+        phone_str = []
         phones = []
         tones = []
 
-        if text == "，":
-            text = ","
-        elif text == "。":
-            text = "."
-        elif text == "！":
-            text = "!"
-        elif text == "？":
-            text = "?"
+        rep_map = {
+            "：": ",",
+            "；": ",",
+            "，": ",",
+            "。": ".",
+            "！": "!",
+            "？": "?",
+            "\n": ".",
+            "·": ",",
+            "、": ",",
+            "...": "…",
+            "$": ".",
+            "“": "'",
+            "”": "'",
+            "‘": "'",
+            "’": "'",
+            "（": "'",
+            "）": "'",
+            "(": "'",
+            ")": "'",
+            "《": "'",
+            "》": "'",
+            "【": "'",
+            "】": "'",
+            "[": "'",
+            "]": "'",
+            "—": "-",
+            "～": "-",
+            "~": "-",
+            "「": "'",
+            "」": "'",
+        }
+
+        if text in rep_map.keys():
+            text = rep_map[text]
 
         if text not in self.lexicon:
             # print("t", text)
             if len(text) > 1:
                 for w in text:
                     # print("w", w)
-                    p, t = self.convert(w)
+                    s, p, t = self.convert(w)
                     if p:
+                        phone_str += s
                         phones += p
                         tones += t
-            return phones, tones
+            return phone_str, phones, tones
 
-        phones, tones = self.lexicon[text]
-        return phones, tones
+        phone_str, phones, tones = self.lexicon[text]
+        return phone_str, phones, tones
 
     def convert(self, text_list: Iterable[str]) -> Tuple[List[int], List[int]]:
+        phone_str = []
+        yinjie_num = []
         phones = []
         tones = []
         for text in text_list:
             # print(text)
-            p, t = self._convert(text)
+            s, p, t = self._convert(text)
+            phone_str += s
+            yinjie_num.append(len(s))
             phones += p
             tones += t
-        return phones, tones
+        return phone_str, yinjie_num, phones, tones

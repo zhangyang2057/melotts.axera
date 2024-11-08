@@ -1138,6 +1138,9 @@ class SynthesizerTrn(nn.Module):
         
         w_ceil = torch.ceil(w)
 
+        # print(f"phone_len: {phone_len}")
+        # print(f"w_ceil.size: {w_ceil.size()}")
+
         y_lengths = torch.clamp_min(torch.sum(w_ceil, [1, 2]), 1).long()
         y_mask = torch.unsqueeze(commons.sequence_mask(y_lengths, None), 1).to(
             x_mask.dtype
@@ -1154,7 +1157,8 @@ class SynthesizerTrn(nn.Module):
         )  # [b, t', t], [b, t, d] -> [b, d, t']
 
         z_p = m_p + torch.randn_like(m_p) * torch.exp(logs_p) * noise_scale
-        return z_p, 512 * y_lengths.int()
+        # print(f"z_p.size: {z_p.size()}")
+        return z_p, w_ceil.int().view(-1), 512 * y_lengths.int()
     
     def flow_forward(self, z_p, y_mask, g):
         # z_p: (1, 192, -1)
