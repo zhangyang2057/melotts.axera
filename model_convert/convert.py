@@ -1,19 +1,13 @@
 import argparse
+import os
+
+os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
+
 from melotts.download_utils import load_or_download_config, load_or_download_model
 from melotts.tts import TTS
 import torch
 import onnx, onnxsim
-import numpy as np
-import os
 import json
-
-
-# proxies for huggingface
-PROXIES = None
-# PROXIES = {
-#     "http": "127.0.0.1:7890",
-#     "https": "127.0.0.1:7890"
-# }
 
 TEXT = {
     "ZH": "爱芯元智半导体股份有限公司，致力于打造世界领先的人工智能感知与边缘计算芯片。服务智慧城市、智能驾驶、机器人的海量普惠的应用",
@@ -49,18 +43,18 @@ def main():
     ckpt_path = "checkpoint.pth"
     device = "cpu"
     if not os.path.exists(config_path):
-        load_or_download_config(locale=language, proxies=PROXIES)
+        load_or_download_config(locale=language)
     else:
         with open(config_path, "r") as f:
             config = json.load(f)
             support_langs = config["data"]["spk2id"].keys()
         if language not in support_langs:
             # Force redownload
-            load_or_download_config(locale=language, proxies=PROXIES)
-            load_or_download_model(locale=language, device=device, proxies=PROXIES)    
+            load_or_download_config(locale=language)
+            load_or_download_model(locale=language, device=device)    
 
     if not os.path.exists(ckpt_path):
-        load_or_download_model(locale=language, device=device, proxies=PROXIES)
+        load_or_download_model(locale=language, device=device)
 
     with open(config_path, "r") as f:
         config = json.load(f)

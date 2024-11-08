@@ -193,6 +193,17 @@ class TTS(nn.Module):
             print(f"Save {tar_filenames[name]}")
             tar_files[name].close()
 
+        torch.cuda.empty_cache()
+        audio = self.audio_numpy_concat(audio_list, sr=self.hps.data.sampling_rate, speed=speed)
+
+        if output_path is None:
+            return audio
+        else:
+            if format:
+                soundfile.write(output_path, audio, self.hps.data.sampling_rate, format=format)
+            else:
+                soundfile.write(output_path, audio, self.hps.data.sampling_rate)
+
 
     def tts_to_file(self, text, speaker_id, output_path=None, sdp_ratio=0.2, noise_scale=0.6, noise_scale_w=0.8, speed=1.0, pbar=None, format=None, position=None, quiet=False):
         language = self.language
