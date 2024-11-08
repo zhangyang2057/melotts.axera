@@ -30,6 +30,10 @@ TBD：
 ```cd python```  
 ```python3 melotts.py -s 要生成语音的句子```  
 
+### 示例
+```python3 melotts.py -s 爱芯元智半导体股份有限公司，致力于打造世界领先的人工智能感知与边缘计算芯片。服务智慧城市、智能驾驶、机器人的海量普惠的应用```  
+输出音频:
+<audio controls src="https://raw.githubusercontent.com/ml-inory/melotts.axera/main/demo.wav" title="demo.wav"></audio>
 ## Cpp(交叉编译)
 下载BSP
 ```
