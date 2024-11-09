@@ -72,13 +72,15 @@ def main():
     sample_rate = args.sample_rate
     lexicon_filename = args.lexicon
     token_filename = args.token
+    enc_model = args.encoder # default="../models/encoder.onnx"
+    dec_model = args.decoder # default="../models/decoder.axmodel"
+
     print(f"sentence: {sentence}")
     print(f"sample_rate: {sample_rate}")
     print(f"lexicon: {lexicon_filename}")
     print(f"token: {token_filename}")
-
-    enc_model = "../models/encoder.onnx"
-    dec_model = "../models/decoder.axmodel"
+    print(f"encoder: {enc_model}")
+    print(f"decoder: {dec_model}")
 
     # Clean sentence
     sentence = text_normalize(sentence)
@@ -90,9 +92,11 @@ def main():
     lexicon = Lexicon(lexicon_filename, token_filename)
 
     # Load models
+    start = time.time()
     sess_enc = ort.InferenceSession(enc_model, providers=["CPUExecutionProvider"], sess_options=ort.SessionOptions())
     sess_dec = InferenceSession.load_from_model(dec_model)
     dec_len = sess_dec.get_output_shapes()[0][-1] // 512
+    print(f"load models take {1000 * (time.time() - start)}ms")
 
     # Load static input
     g = np.fromfile("../models/g.bin", dtype=np.float32).reshape(1, 256, 1)
