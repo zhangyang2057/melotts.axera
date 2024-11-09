@@ -68,6 +68,51 @@ def replace_numbers(text):
     return text
 
 
+def replace_punctuation(text):
+    rep_map = {
+        "：": ",",
+        "；": ",",
+        "，": ",",
+        "。": ".",
+        "！": "!",
+        "？": "?",
+        "\n": ".",
+        "·": ",",
+        "、": ",",
+        "...": "…",
+        "$": ".",
+        "“": "'",
+        "”": "'",
+        "‘": "'",
+        "’": "'",
+        "（": "'",
+        "）": "'",
+        "(": "'",
+        ")": "'",
+        "《": "'",
+        "》": "'",
+        "【": "'",
+        "】": "'",
+        "[": "'",
+        "]": "'",
+        "—": "-",
+        "～": "-",
+        "~": "-",
+        "「": "'",
+        "」": "'",
+    }
+
+    for k, v in rep_map.items():
+        text = text.replace(k, v)
+    return text
+
+
+def text_normalize(text):
+    text = replace_numbers(text)
+    text = replace_punctuation(text)
+    return text
+
+
 class Lexicon:
     def __init__(self, lexion_filename: str, tokens_filename: str):
         tokens = dict()
@@ -101,46 +146,10 @@ class Lexicon:
             self.lexicon[p] = ([p], [i], [tone])
         self.lexicon[" "] = ([" "], [tokens["_"]], [0])
 
-    def _convert(self, text: str) -> Tuple[List[int], List[int]]:
+    def g2p_zh_mix_en(self, text: str) -> Tuple[List[int], List[int]]:
         phone_str = []
         phones = []
         tones = []
-
-        rep_map = {
-            "：": ",",
-            "；": ",",
-            "，": ",",
-            "。": ".",
-            "！": "!",
-            "？": "?",
-            "\n": ".",
-            "·": ",",
-            "、": ",",
-            "...": "…",
-            "$": ".",
-            "“": "'",
-            "”": "'",
-            "‘": "'",
-            "’": "'",
-            "（": "'",
-            "）": "'",
-            "(": "'",
-            ")": "'",
-            "《": "'",
-            "》": "'",
-            "【": "'",
-            "】": "'",
-            "[": "'",
-            "]": "'",
-            "—": "-",
-            "～": "-",
-            "~": "-",
-            "「": "'",
-            "」": "'",
-        }
-
-        if text in rep_map.keys():
-            text = rep_map[text]
 
         if text not in self.lexicon:
             # print("t", text)
@@ -156,6 +165,16 @@ class Lexicon:
 
         phone_str, phones, tones = self.lexicon[text]
         return phone_str, phones, tones
+    
+    
+    def split_zh_en(self, text):
+        spliter = '#$&^!@'
+        # replace all english words
+        text = re.sub('([a-zA-Z\s]+)', lambda x: f'{spliter}{x.group(1)}{spliter}', text)
+        texts = text.split(spliter)
+        texts = [t for t in texts if len(t) > 0]
+        return texts
+    
 
     def convert(self, text_list: Iterable[str]) -> Tuple[List[int], List[int]]:
         phone_str = []
@@ -163,11 +182,12 @@ class Lexicon:
         phones = []
         tones = []
         for text in text_list:
-            text = replace_numbers(text)
-            # print(text)
-            s, p, t = self._convert(text)
-            phone_str += s
-            yinjie_num.append(len(s))
-            phones += p
-            tones += t
+            texts_zh_en = self.split_zh_en(text)
+            for text_one_lang in texts_zh_en:
+                s, p, t = self.g2p_zh_mix_en(text_one_lang)
+
+                phone_str += s
+                yinjie_num.append(len(s))
+                phones += p
+                tones += t
         return phone_str, yinjie_num, phones, tones

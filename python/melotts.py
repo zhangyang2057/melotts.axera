@@ -80,6 +80,9 @@ def main():
     enc_model = "../models/encoder.onnx"
     dec_model = "../models/decoder.axmodel"
 
+    # Clean sentence
+    sentence = text_normalize(sentence)
+    
     # Split sentence
     sens = split_sentences_zh(sentence)
 

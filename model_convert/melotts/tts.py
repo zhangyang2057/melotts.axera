@@ -14,7 +14,7 @@ import torch.nn.functional as F
 from .models import SynthesizerTrn
 from .split_utils import split_sentence
 from .download_utils import load_or_download_config, load_or_download_model
-from .text import cleaned_text_to_sequence, get_bert
+from .text import cleaned_text_to_sequence
 from .text.cleaner import clean_text
 from .commons import intersperse
 import tarfile
