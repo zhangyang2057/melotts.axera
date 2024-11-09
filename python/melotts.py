@@ -201,7 +201,7 @@ def main():
             else:
                 sub_audio_list.append(audio)
 
-        sub_audio = merge_sub_audio(sub_audio_list, pad_size * 512, None)
+        sub_audio = merge_sub_audio(sub_audio_list, 0, audio_len)
         audio_list.append(sub_audio)
 
     audio = audio_numpy_concat(audio_list, sr=sample_rate, speed=args.speed)
