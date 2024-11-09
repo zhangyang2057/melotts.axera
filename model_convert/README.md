@@ -19,8 +19,6 @@ pip install -r requirements.txt
 
 ## 转换模型(PyTorch -> ONNX)
 
-由于需要到 huggingface 下载 PyTorch 权重，可能需要设置代理，可手动修改 convert.py 的 PROXIES 参数
-
 ```
 python convert.py
 ```  
