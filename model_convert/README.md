@@ -6,10 +6,9 @@
 
 ## 安装依赖
 ```cd model_convert```  
-```pip install requirements.txt```  
+```pip install -r requirements.txt```  
 
 ## 转换模型(PyTorch->ONNX)
-由于需要到huggingface下载PyTorch权重，可能需要设置代理，可手动修改convert.py的PROXIES参数  
 ```python convert.py```  
 
 ## 转换模型(ONNX->Axera)
