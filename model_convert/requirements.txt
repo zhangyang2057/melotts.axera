@@ -13,7 +13,7 @@ librosa==0.9.1
 MeCab==0.996.5
 mecab_python3==1.0.9
 num2words==0.5.12
-numpy==2.1.2
+numpy
 onnx==1.16.2
 onnx_simplifier==0.4.36
 pykakasi==2.2.1
