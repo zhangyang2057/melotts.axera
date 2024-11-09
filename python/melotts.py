@@ -5,7 +5,7 @@ import onnxruntime as ort
 import argparse
 import time
 from utils import *
-import math
+
 
 
 def get_args():

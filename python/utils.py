@@ -1,5 +1,6 @@
 import re
 from typing import Iterable, List, Tuple
+import cn2an
 
 
 def merge_short_sentences_zh(sens):
@@ -58,6 +59,13 @@ def intersperse(lst, item):
     result = [item] * (len(lst) * 2 + 1)
     result[1::2] = lst
     return result
+
+
+def replace_numbers(text):
+    numbers = re.findall(r"\d+(?:\.?\d+)?", text)
+    for number in numbers:
+        text = text.replace(number, cn2an.an2cn(number), 1)
+    return text
 
 
 class Lexicon:
@@ -155,6 +163,7 @@ class Lexicon:
         phones = []
         tones = []
         for text in text_list:
+            text = replace_numbers(text)
             # print(text)
             s, p, t = self._convert(text)
             phone_str += s
