@@ -1,6 +1,9 @@
 import re
 from typing import Iterable, List, Tuple
 import cn2an
+from english_utils.abbreviations import expand_abbreviations
+from english_utils.time_norm import expand_time_english
+from english_utils.number_norm import normalize_numbers as replace_numbers_en
 
 
 def merge_short_sentences_zh(sens):
@@ -61,7 +64,7 @@ def intersperse(lst, item):
     return result
 
 
-def replace_numbers(text):
+def replace_numbers_zh(text):
     numbers = re.findall(r"\d+(?:\.?\d+)?", text)
     for number in numbers:
         text = text.replace(number, cn2an.an2cn(number), 1)
@@ -107,12 +110,6 @@ def replace_punctuation(text):
     return text
 
 
-def text_normalize(text):
-    text = replace_numbers(text)
-    text = replace_punctuation(text)
-    return text
-
-
 class Lexicon:
     def __init__(self, lexion_filename: str, tokens_filename: str):
         tokens = dict()
@@ -155,8 +152,8 @@ class Lexicon:
             # print("t", text)
             if len(text) > 1:
                 for w in text:
-                    # print("w", w)
-                    s, p, t = self.convert(w)
+                    # print("w: ", w)
+                    s, _, p, t = self.convert(w)
                     if p:
                         phone_str += s
                         phones += p
@@ -168,26 +165,62 @@ class Lexicon:
     
     
     def split_zh_en(self, text):
-        spliter = '#$&^!@'
-        # replace all english words
-        text = re.sub('([a-zA-Z\s]+)', lambda x: f'{spliter}{x.group(1)}{spliter}', text)
-        texts = text.split(spliter)
-        texts = [t for t in texts if len(t) > 0]
-        return texts
+        if re.search(r'[a-zA-Z]+', text):
+            spliter = '#$&^!@'
+            # replace all english words
+            text = re.sub(r'[a-zA-Z]+', lambda x: f'{spliter}{x.group()}{spliter}', text)
+            texts = text.split(spliter)
+            texts = [t for t in texts if len(t) > 0]
+            return texts
+        else:
+            return [text]
+        
+    
+    def normalize_english(self, text):
+        text = text.lower()
+        text = expand_time_english(text)
+        text = replace_numbers_en(text)
+        text = expand_abbreviations(text)
+        return text
+
+    def normalize_chinese(self, text):
+        text = replace_numbers_zh(text)
+        return text
     
 
-    def convert(self, text_list: Iterable[str]) -> Tuple[List[int], List[int]]:
+    def is_english(self, text):
+        return 1 if re.match(r'[a-zA-Z\s]+', text) else 0
+
+    def convert(self, text: Iterable[str]) -> Tuple[List[int], List[int]]:
         phone_str = []
         yinjie_num = []
         phones = []
         tones = []
-        for text in text_list:
-            texts_zh_en = self.split_zh_en(text)
-            for text_one_lang in texts_zh_en:
+
+        text = replace_punctuation(text)
+        texts_zh_en = self.split_zh_en(text)
+        en_num = sum([self.is_english(i) for i in texts_zh_en])
+        if en_num * 2 >= len(texts_zh_en):
+            texts_zh_en = self.split_zh_en(self.normalize_english(text))
+        else:
+            texts_zh_en = self.split_zh_en(self.normalize_chinese(text))
+        for text_one_lang in texts_zh_en:
+            if self.is_english(text_one_lang):
+                # English
                 s, p, t = self.g2p_zh_mix_en(text_one_lang)
 
                 phone_str += s
                 yinjie_num.append(len(s))
                 phones += p
                 tones += t
+            else:
+                # print(f"text_one_lang = {text_one_lang}")
+                for tl in text_one_lang:
+                    s, p, t = self.g2p_zh_mix_en(tl)
+
+                    phone_str += s
+                    yinjie_num.append(len(s))
+                    phones += p
+                    tones += t
+            
         return phone_str, yinjie_num, phones, tones

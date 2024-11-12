@@ -1,5 +1,6 @@
-numpy==1.26.4
+numpy==1.24.4
 onnx==1.16.0
 onnxruntime==1.16.0
 soundfile
 cn2an
+inflect==7.3.1
