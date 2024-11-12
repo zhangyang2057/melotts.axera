@@ -22,8 +22,6 @@ public:
                                 float noise_scale_w,
                                 float sdp_ratio);
 
-    std::vector<Ort::Value> RunTest();                                
-
     inline int GetInputSize(int index) const {
         return m_input_sizes[index];
     }

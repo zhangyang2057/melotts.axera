@@ -47,7 +47,7 @@ int main(int argc, char** argv) {
     cmd.add<std::string>("sentence", 's', "input sentence", false, "爱芯元智半导体股份有限公司，致力于打造世界领先的人工智能感知与边缘计算芯片。服务智慧城市、智能驾驶、机器人的海量普惠的应用");
     cmd.add<std::string>("wav", 'w', "wav file", false, "output.wav");
 
-    cmd.add<float>("speed", 0, "speak speed", false, 1.0f);
+    cmd.add<float>("speed", 0, "speak speed", false, 0.8f);
     cmd.add<int>("sample_rate", 0, "sample rate", false, 44100);
     cmd.parse_check(argc, argv);
 
@@ -129,7 +129,7 @@ int main(int argc, char** argv) {
     float sdp_ratio     = 0.2f;
     auto encoder_output = encoder.Run(phones, tones, langids, g, noise_scale, noise_scale_w, length_scale, sdp_ratio);
     float* zp_data = encoder_output.at(0).GetTensorMutableData<float>();
-    int audio_len = encoder_output.at(1).GetTensorMutableData<int>()[0];
+    int audio_len = encoder_output.at(2).GetTensorMutableData<int>()[0];
     auto zp_info = encoder_output.at(0).GetTensorTypeAndShapeInfo();
     auto zp_shape = zp_info.GetShape();
 
