@@ -13,6 +13,8 @@
 #include <fstream>
 #include <iostream>
 #include <cmath>
+#include <ctime>
+#include <sys/time.h>
 
 #include "cmdline.hpp"
 #include "OnnxWrapper.hpp"
@@ -34,6 +36,14 @@ static int calc_product(const std::vector<int64_t>& dims) {
     for (auto i : dims)
         result *= i;
     return result;
+}
+
+static double get_current_time()
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+
+    return tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0;
 }
 
 int main(int argc, char** argv) {
@@ -115,30 +125,49 @@ int main(int argc, char** argv) {
     }
     fread(g.data(), sizeof(float), g.size(), fp);
     fclose(fp);
+	
+    double start, end;
 
-    printf("Load encoder\n");
+    start = get_current_time();
     OnnxWrapper encoder;
     if (0 != encoder.Init(encoder_file)) {
         printf("encoder init failed!\n");
         return -1;
     }
+    end = get_current_time();
+    printf("Load encoder take %.2f ms\n", (end - start));	
+	
+    start = get_current_time();	
+    EngineWrapper decoder_model;
+    if (0 != decoder_model.Init(decoder_file.c_str())) {
+        printf("Init decoder model failed!\n");
+        return -1;
+    }
+    end = get_current_time();
+    printf("Load decoder take %.2f ms\n", (end - start));	
 
     float noise_scale   = 0.3f;
     float length_scale  = 1.0 / speed;
     float noise_scale_w = 0.6f;
     float sdp_ratio     = 0.2f;
+	
+    start = get_current_time();
     auto encoder_output = encoder.Run(phones, tones, langids, g, noise_scale, noise_scale_w, length_scale, sdp_ratio);
     float* zp_data = encoder_output.at(0).GetTensorMutableData<float>();
     int audio_len = encoder_output.at(2).GetTensorMutableData<int>()[0];
     auto zp_info = encoder_output.at(0).GetTensorTypeAndShapeInfo();
     auto zp_shape = zp_info.GetShape();
+    end = get_current_time();
+    printf("Encoder run take %.2f ms\n", (end - start));		
 
+	/*
     printf("Load decoder model\n");
     EngineWrapper decoder_model;
     if (0 != decoder_model.Init(decoder_file.c_str())) {
         printf("Init decoder model failed!\n");
         return -1;
     }
+	*/
 
     int zp_size = decoder_model.GetInputSize(0) / sizeof(float);
     int dec_len = zp_size / zp_shape[1];
@@ -147,6 +176,7 @@ int main(int argc, char** argv) {
 
     int dec_slice_num = int(std::ceil(zp_shape[2] * 1.0 / dec_len));
     std::vector<float> wavlist;
+    start = get_current_time();
     for (int i = 0; i < dec_slice_num; i++) {
         std::vector<float> zp(zp_size, 0);
         int actual_size = (i + 1) * dec_len < zp_shape[2] ? dec_len : zp_shape[2] - i * dec_len;
@@ -165,7 +195,8 @@ int main(int argc, char** argv) {
         actual_size = (i + 1) * audio_slice_len < audio_len ? audio_slice_len : audio_len - i * audio_slice_len;
         wavlist.insert(wavlist.end(), decoder_output.begin(), decoder_output.begin() + actual_size);
     }
-
+    end = get_current_time();
+    printf("Decoder run %d times take %.2f ms\n", (end - start), dec_slice_num);	
     printf("wav len: %d\n", wavlist.size());
     AudioFile<float> audio_file;
     std::vector<std::vector<float> > audio_samples{wavlist};
