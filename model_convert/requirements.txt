@@ -14,7 +14,7 @@ MeCab==0.996.5
 mecab_python3==1.0.9
 num2words==0.5.12
 onnx==1.16.1
-onnxruntime==1.20.0
+onnxruntime==1.16.0
 onnx_simplifier==0.4.36
 pykakasi==2.2.1
 pypinyin==0.50.0
@@ -25,3 +25,5 @@ torchaudio==2.1.2
 numpy
 tqdm==4.66.5
 transformers==4.27.4
+unidic-lite==1.0.8
+fugashi==1.4.0

@@ -4,8 +4,31 @@ import onnxruntime as ort
 import argparse
 import time
 from utils import *
+from split_utils import split_sentence
+from text import cleaned_text_to_sequence
+from text.cleaner import clean_text
+from symbols import *
 
+def get_text_for_tts_infer(text, language_str, symbol_to_id=None):
+    norm_text, phone, tone, word2ph = clean_text(text, language_str)
+    yinjie_num, phone, tone, language = cleaned_text_to_sequence(phone, tone, language_str, symbol_to_id)
 
+    phone = intersperse(phone, 0)
+    tone = intersperse(tone, 0)
+    language = intersperse(language, 0)
+    # for i in range(len(word2ph)):
+    #     word2ph[i] = word2ph[i] * 2
+    # word2ph[0] += 1
+
+    return yinjie_num, phone, tone, language
+
+def split_sentences_into_pieces(text, language, quiet=False):
+    texts = split_sentence(text, language_str=language)
+    if not quiet:
+        print(" > Text split to sentences.")
+        print('\n'.join(texts))
+        print(" > ===========================")
+    return texts
 
 def get_args():
     parser = argparse.ArgumentParser(
@@ -20,6 +43,8 @@ def get_args():
     parser.add_argument("--speed", type=float, required=False, default=0.8)
     parser.add_argument("--lexicon", type=str, required=False, default="../models/lexicon.txt")
     parser.add_argument("--token", type=str, required=False, default="../models/tokens.txt")
+    parser.add_argument("--language", type=str, 
+                        choices=["ZH", "ZH_MIX_EN", "JP", "EN", 'KR', "ES", "SP","FR"], required=False, default="ZH_MIX_EN")
     return parser.parse_args()
 
 
@@ -149,7 +174,8 @@ def main():
     lexicon_filename = args.lexicon
     token_filename = args.token
     enc_model = args.encoder # default="../models/encoder.onnx"
-    dec_model = args.decoder # default="../models/decoder.axmodel"
+    dec_model = args.decoder # default="../models/decoder.onnx"
+    language = args.language # default: ZH_MIX_EN
 
     print(f"sentence: {sentence}")
     print(f"sample_rate: {sample_rate}")
@@ -157,9 +183,13 @@ def main():
     print(f"token: {token_filename}")
     print(f"encoder: {enc_model}")
     print(f"decoder: {dec_model}")
+    print(f"language: {language}")
+
+    _symbol_to_id = {s: i for i, s in enumerate(LANG_TO_SYMBOL_MAP[language])}
 
     # Split sentence
-    sens = split_sentences_zh(sentence)
+    # sens = split_sentences_zh(sentence)
+    sens = split_sentences_into_pieces(sentence, language, quiet=False)
 
     # Load lexicon
     lexicon = Lexicon(lexicon_filename, token_filename)
@@ -179,30 +209,35 @@ def main():
 
     # Iterate over splitted sentences
     for n, se in enumerate(sens):
+        if language in ['EN', 'ZH_MIX_EN']:
+            se = re.sub(r'([a-z])([A-Z])', r'\1 \2', se)
         print(f"\nSentence[{n}]: {se}")
         # Convert sentence to phones and tones
-        phone_str, yinjie_num, phones, tones = lexicon.convert(se)
+        # phone_str, yinjie_num, phones, tones = lexicon.convert(se)
+        yinjie_num, phones, tones, lang_ids = get_text_for_tts_infer(se, language, symbol_to_id=_symbol_to_id)
 
         # Add blank between words
-        phone_str = intersperse(phone_str, 0)
-        phones = np.array(intersperse(phones, 0), dtype=np.int32)
-        tones = np.array(intersperse(tones, 0), dtype=np.int32)
-        yinjie_num = np.array(yinjie_num, dtype=np.int32) * 2
-        yinjie_num[0] += 1
-        assert (yinjie_num.sum() == phones.shape[0])
-        pron_slices = generate_pronounce_slice(yinjie_num)
+        phone_str = intersperse(se, 0)
+        phones = np.array(phones, dtype=np.int32)
+        tones = np.array(tones, dtype=np.int32)
+        # phones = np.array(intersperse(phones, 0), dtype=np.int32)
+        # tones = np.array(intersperse(tones, 0), dtype=np.int32)
+        # yinjie_num = np.array(yinjie_num, dtype=np.int32) * 2
+        # yinjie_num[0] += 1
+        # assert (yinjie_num.sum() == phones.shape[0])
+        # pron_slices = generate_pronounce_slice(yinjie_num)
 
         # for s in pron_slices:
         #     print(phone_str[s])
         
         phone_len = phones.shape[-1]
 
-        language = np.array([3] * phone_len, dtype=np.int32)
+        # language = np.array([3] * phone_len, dtype=np.int32)
 
         start = time.time()
         z_p, pronoun_lens, audio_len = sess_enc.run(None, input_feed={
                                     'phone': phones, 'g': g,
-                                    'tone': tones, 'language': language, 
+                                    'tone': tones, 'language': lang_ids, 
                                     'noise_scale': np.array([0], dtype=np.float32),
                                     'length_scale': np.array([1.0 / args.speed], dtype=np.float32),
                                     'noise_scale_w': np.array([0], dtype=np.float32),
@@ -221,51 +256,66 @@ def main():
         # print(f"audio_len: {audio_len}")
 
         # 生成每个词的发音数量
-        pron_num = generate_word_pron_num(pronoun_lens, pron_slices)
+        # pron_num = generate_word_pron_num(pronoun_lens, pron_slices)
         # assert (sum(pron_num) == pronoun_lens.sum())
 
         sub_audio_list = []
-        pron_num_slices, zp_slices, strip_flags, pron_lens, is_long = \
-            generate_decode_slices(pron_num, dec_len)
+        for i in range(dec_slice_num):
+            z_p_slice = z_p[..., i * dec_len : (i + 1) * dec_len]
+            sub_dec_len = z_p_slice.shape[-1]
+            sub_audio_len = 512 * sub_dec_len
+
+            if z_p_slice.shape[-1] < dec_len:
+                z_p_slice = np.concatenate((z_p_slice, np.zeros((*z_p_slice.shape[:-1], dec_len - z_p_slice.shape[-1]), dtype=np.float32)), axis=-1)
+
+            start = time.time()
+            audio = sess_dec.run(None, input_feed={"z_p": z_p_slice,
+                                "g": g
+                                })[0].flatten()
+            audio = audio[:sub_audio_len]
+            print(f"Long word slice[{i}]: decoder run take {1000 * (time.time() - start):.2f}ms")
+            sub_audio_list.append(audio)
+        # pron_num_slices, zp_slices, strip_flags, pron_lens, is_long = \
+        #     generate_decode_slices(pron_num, dec_len)
         
-        for i in range(len(pron_num_slices)):
-            pron_start, pron_end = pron_num_slices[i]
-            zp_start, zp_end = zp_slices[i]
+        # for i in range(len(pron_num_slices)):
+        #     pron_start, pron_end = pron_num_slices[i]
+        #     zp_start, zp_end = zp_slices[i]
 
-            phone_strs = []
-            for n in range(pron_start, pron_end):
-                phone_strs.extend(phone_str[pron_slices[n]])
-            # print(f"phone str: {phone_strs}")
+        #     phone_strs = []
+        #     for n in range(pron_start, pron_end):
+        #         phone_strs.extend(phone_str[pron_slices[n]])
+        #     # print(f"phone str: {phone_strs}")
 
-            if is_long[i]:
-                sub_audio_list.extend(decode_long_word(sess_dec, z_p[..., zp_start : zp_end], g, dec_len))
-            else:
-                sub_dec_len = zp_end - zp_start
-                sub_audio_len = 512 * sub_dec_len
+        #     if is_long[i]:
+        #         sub_audio_list.extend(decode_long_word(sess_dec, z_p[..., zp_start : zp_end], g, dec_len))
+        #     else:
+        #         sub_dec_len = zp_end - zp_start
+        #         sub_audio_len = 512 * sub_dec_len
 
-                zp_slice = z_p[..., zp_start : zp_end]
-                if zp_slice.shape[-1] < dec_len:
-                    zp_slice = np.concatenate((zp_slice, np.zeros((*zp_slice.shape[:-1], dec_len - zp_slice.shape[-1]), dtype=np.float32)), axis=-1)
+        #         zp_slice = z_p[..., zp_start : zp_end]
+        #         if zp_slice.shape[-1] < dec_len:
+        #             zp_slice = np.concatenate((zp_slice, np.zeros((*zp_slice.shape[:-1], dec_len - zp_slice.shape[-1]), dtype=np.float32)), axis=-1)
 
-                start = time.time()
-                audio = sess_dec.run(None, input_feed={"z_p": zp_slice,
-                                    "g": g
-                                    })[0].flatten()
-                audio = audio[:sub_audio_len]
-                print(f"Sentence[{n}] Slice[{i}]: decoder run take {1000 * (time.time() - start):.2f}ms")
+        #         start = time.time()
+        #         audio = sess_dec.run(None, input_feed={"z_p": zp_slice,
+        #                             "g": g
+        #                             })[0].flatten()
+        #         audio = audio[:sub_audio_len]
+        #         print(f"Sentence[{n}] Slice[{i}]: decoder run take {1000 * (time.time() - start):.2f}ms")
 
-                if strip_flags[i][0]:
-                    # strip head
-                    head = 512 * pron_num[pron_start]
-                    # print(f"Strip head: {phone_str[pron_slices[pron_start]]}")
-                    audio = audio[head : ]
-                if strip_flags[i][1]:
-                    # strip tail
-                    tail = 512 * pron_num[pron_end - 1]
-                    # print(f"Strip tail: {phone_str[pron_slices[pron_end - 1]]}")
-                    audio = audio[: -tail]
+        #         if strip_flags[i][0]:
+        #             # strip head
+        #             head = 512 * pron_num[pron_start]
+        #             # print(f"Strip head: {phone_str[pron_slices[pron_start]]}")
+        #             audio = audio[head : ]
+        #         if strip_flags[i][1]:
+        #             # strip tail
+        #             tail = 512 * pron_num[pron_end - 1]
+        #             # print(f"Strip tail: {phone_str[pron_slices[pron_end - 1]]}")
+        #             audio = audio[: -tail]
 
-                sub_audio_list.append(audio)
+        #         sub_audio_list.append(audio)
 
         sub_audio = merge_sub_audio(sub_audio_list, 0, audio_len)
         audio_list.append(sub_audio)
