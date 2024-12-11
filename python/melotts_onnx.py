@@ -41,8 +41,6 @@ def get_args():
     parser.add_argument("--decoder", "-d", type=str, required=False, default="../models/decoder.onnx")
     parser.add_argument("--sample_rate", "-sr", type=int, required=False, default=44100)
     parser.add_argument("--speed", type=float, required=False, default=0.8)
-    parser.add_argument("--lexicon", type=str, required=False, default="../models/lexicon.txt")
-    parser.add_argument("--token", type=str, required=False, default="../models/tokens.txt")
     parser.add_argument("--language", type=str, 
                         choices=["ZH", "ZH_MIX_EN", "JP", "EN", 'KR', "ES", "SP","FR"], required=False, default="ZH_MIX_EN")
     return parser.parse_args()
@@ -74,16 +72,12 @@ def main():
     args = get_args()
     sentence = args.sentence
     sample_rate = args.sample_rate
-    lexicon_filename = args.lexicon
-    token_filename = args.token
     enc_model = args.encoder # default="../models/encoder.onnx"
     dec_model = args.decoder # default="../models/decoder.onnx"
     language = args.language # default: ZH_MIX_EN
 
     print(f"sentence: {sentence}")
     print(f"sample_rate: {sample_rate}")
-    print(f"lexicon: {lexicon_filename}")
-    print(f"token: {token_filename}")
     print(f"encoder: {enc_model}")
     print(f"decoder: {dec_model}")
     print(f"language: {language}")
@@ -95,9 +89,6 @@ def main():
     start = time.time()
     sens = split_sentences_into_pieces(sentence, language, quiet=False)
     print(f"split_sentences_into_pieces take {1000 * (time.time() - start)}ms")
-
-    # Load lexicon
-    lexicon = Lexicon(lexicon_filename, token_filename)
 
     # Load models
     start = time.time()
@@ -158,7 +149,7 @@ def main():
                                 "g": g
                                 })[0].flatten()
             audio = audio[:sub_audio_len]
-            print(f"Long word slice[{i}]: decoder run take {1000 * (time.time() - start):.2f}ms")
+            print(f"Decode slice[{i}]: decoder run take {1000 * (time.time() - start):.2f}ms")
             sub_audio_list.append(audio)
         sub_audio = merge_sub_audio(sub_audio_list, 0, audio_len)
         audio_list.append(sub_audio)
