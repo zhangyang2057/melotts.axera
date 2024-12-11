@@ -186,7 +186,11 @@ def text_normalize(text):
     return text
 
 model_id = 'bert-base-uncased'
-tokenizer = AutoTokenizer.from_pretrained(model_id)
+if not os.path.exists(model_id):
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    tokenizer.save_pretrained(f"./{model_id}")
+else:
+    tokenizer = AutoTokenizer.from_pretrained(model_id, cache_dir=f"./{model_id}")
 def g2p_old(text):
     tokenized = tokenizer.tokenize(text)
     # import pdb; pdb.set_trace()

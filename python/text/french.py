@@ -21,7 +21,11 @@ def text_normalize(text):
     return text
 
 model_id = 'dbmdz/bert-base-french-europeana-cased'
-tokenizer = AutoTokenizer.from_pretrained(model_id)
+if not os.path.exists(model_id):
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    tokenizer.save_pretrained(model_id)
+else:    
+    tokenizer = AutoTokenizer.from_pretrained(model_id, cache_dir=f"./{model_id}")
 
 def g2p(text, pad_start_end=True, tokenized=None):
     if tokenized is None:

@@ -2,6 +2,7 @@
 # compatible with Julius https://github.com/julius-speech/segmentation-kit
 import re
 import unicodedata
+import os
 
 from transformers import AutoTokenizer
 
@@ -92,7 +93,11 @@ def distribute_phone(n_phone, n_word):
 # tokenizer = AutoTokenizer.from_pretrained('cl-tohoku/bert-base-japanese-v3')
 
 model_id = 'kykim/bert-kor-base'
-tokenizer = AutoTokenizer.from_pretrained(model_id)
+if not os.path.exists(model_id):
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    tokenizer.save_pretrained(model_id)
+else:    
+    tokenizer = AutoTokenizer.from_pretrained(model_id, cache_dir=f"./{model_id}")
 
 def g2p(norm_text):
     tokenized = tokenizer.tokenize(norm_text)

@@ -1,3 +1,6 @@
+import os
+os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
+
 import numpy as np
 import soundfile
 import onnxruntime as ort
@@ -189,7 +192,9 @@ def main():
 
     # Split sentence
     # sens = split_sentences_zh(sentence)
+    start = time.time()
     sens = split_sentences_into_pieces(sentence, language, quiet=False)
+    print(f"split_sentences_into_pieces take {1000 * (time.time() - start)}ms")
 
     # Load lexicon
     lexicon = Lexicon(lexicon_filename, token_filename)
