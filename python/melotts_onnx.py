@@ -126,7 +126,6 @@ def main():
     _symbol_to_id = {s: i for i, s in enumerate(LANG_TO_SYMBOL_MAP[language])}
 
     # Split sentence
-    # sens = split_sentences_zh(sentence)
     start = time.time()
     sens = split_sentences_into_pieces(sentence, language, quiet=False)
     print(f"split_sentences_into_pieces take {1000 * (time.time() - start)}ms")
