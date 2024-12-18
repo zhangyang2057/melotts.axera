@@ -17,8 +17,7 @@ def cleaned_text_to_sequence(cleaned_text, tones, language, symbol_to_id=None):
     tones = [i + tone_start for i in tones]
     lang_id = language_id_map[language]
     lang_ids = [lang_id for i in phones]
-    yinjie_num = [len(symbol) for symbol in cleaned_text]
-    return yinjie_num, phones, tones, lang_ids
+    return phones, tones, lang_ids
 
 
 def get_bert(norm_text, word2ph, language, device):

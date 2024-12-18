@@ -24,7 +24,7 @@ def clean_text(text, language):
     if language == "ZH":
         from .import chinese as language_module
     elif language == "ZH_MIX_EN":
-        from .import chinese_bert as language_module
+        from .import chinese_mix as language_module
     elif language == "EN":
         from .import english as language_module
     elif language == "JP":
