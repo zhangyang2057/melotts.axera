@@ -22,13 +22,19 @@ import copy
 def clean_text(text, language):
     start = time.time()
     if language == "ZH":
-        from .import chinese as language_module
+        from . import chinese as language_module
     elif language == "ZH_MIX_EN":
-        from .import chinese_mix as language_module
+        from . import chinese_mix as language_module
     elif language == "EN":
-        from .import english as language_module
+        from . import english as language_module
     elif language == "JP":
-        from .import japanese as language_module
+        from . import japanese as language_module
+    elif language == "KR":
+        from . import korean as language_module
+    elif language == "FR":
+        from . import french as language_module
+    elif language == "SP" or language == "ES":
+        from . import spanish as language_module
     else:
         assert False, f"Unsupported lanuguage: {language}"
     print(f"Load language module take {1000 * (time.time() - start)}ms")

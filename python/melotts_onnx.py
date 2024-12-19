@@ -6,11 +6,15 @@ import soundfile
 import onnxruntime as ort
 import argparse
 import time
-from utils import *
 from split_utils import split_sentence
 from text import cleaned_text_to_sequence
 from text.cleaner import clean_text
 from symbols import *
+
+def intersperse(lst, item):
+    result = [item] * (len(lst) * 2 + 1)
+    result[1::2] = lst
+    return result
 
 def get_text_for_tts_infer(text, language_str, symbol_to_id=None):
     norm_text, phone, tone, word2ph = clean_text(text, language_str)
@@ -116,6 +120,8 @@ def main():
     enc_model = args.encoder # default="../models/encoder.onnx"
     dec_model = args.decoder # default="../models/decoder.onnx"
     language = args.language # default: ZH_MIX_EN
+    if language == "ZH":
+        language = "ZH_MIX_EN"
 
     print(f"sentence: {sentence}")
     print(f"sample_rate: {sample_rate}")

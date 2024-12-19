@@ -7,11 +7,15 @@ import onnxruntime as ort
 from axengine import InferenceSession
 import argparse
 import time
-from utils import *
 from split_utils import split_sentence
 from text import cleaned_text_to_sequence
 from text.cleaner import clean_text
 from symbols import *
+
+def intersperse(lst, item):
+    result = [item] * (len(lst) * 2 + 1)
+    result[1::2] = lst
+    return result
 
 def get_text_for_tts_infer(text, language_str, symbol_to_id=None):
     norm_text, phone, tone, word2ph = clean_text(text, language_str)
@@ -117,6 +121,8 @@ def main():
     enc_model = args.encoder # default="../models/encoder.onnx"
     dec_model = args.decoder # default="../models/decoder.axmodel"
     language = args.language # default: ZH_MIX_EN
+    if language == "ZH":
+        language = "ZH_MIX_EN"
 
     print(f"sentence: {sentence}")
     print(f"sample_rate: {sample_rate}")
@@ -135,7 +141,7 @@ def main():
     start = time.time()
     sess_enc = ort.InferenceSession(enc_model, providers=["CPUExecutionProvider"], sess_options=ort.SessionOptions())
     sess_dec = InferenceSession.load_from_model(dec_model)
-    dec_len = 65536 // 512
+    dec_len = 128
     print(f"load models take {1000 * (time.time() - start)}ms")
 
     # Load static input

@@ -11,7 +11,8 @@ import json
 
 TEXT = {
     "ZH": "爱芯元智半导体股份有限公司，致力于打造世界领先的人工智能感知与边缘计算芯片。服务智慧城市、智能驾驶、机器人的海量普惠的应用",
-    "JP": "海の向こうには何があるの？"
+    "JP": "海の向こうには何があるの？",
+    "EN": "Did you ever hear a folk tale about a giant turtle?"
 }
 
 def get_args():
@@ -20,6 +21,7 @@ def get_args():
         "-l",
         "--language",
         type=str,
+        required=False,
         default="ZH",
         choices=["EN", "FR", "JP", "ES", "ZH", "KR"],
         help="target language for TTS",
@@ -28,6 +30,7 @@ def get_args():
         "-d",
         "--dec_len",
         type=int,
+        required=False,
         default=128,
         help="decoder input length",
     )
@@ -39,6 +42,7 @@ def get_args():
 def main():
     args = get_args()
     language = args.language
+    lower_lang = language.lower()
     config_path = "config.json"
     ckpt_path = "checkpoint.pth"
     device = "cpu"
@@ -58,7 +62,10 @@ def main():
 
     with open(config_path, "r") as f:
         config = json.load(f)
-        speaker_id = config["data"]["spk2id"][language]
+        if language == "EN":
+            speaker_id = config["data"]["spk2id"]["EN-US"]
+        else:
+            speaker_id = config["data"]["spk2id"][language]
 
         print(f"speaker_id: {speaker_id}")
 
@@ -90,7 +97,7 @@ def main():
             "language": {0: "phone_len"},
         }
         # Export the model
-        encoder_name = "encoder.onnx"
+        encoder_name = f"encoder-{lower_lang}.onnx"
         tts.model.forward = tts.model.enc_forward
         torch.onnx.export(tts.model,               # model being run
                         inputs,                    # model input (or a tuple for multiple inputs)
@@ -111,7 +118,7 @@ def main():
         inputs = (
             torch.rand(1, 192, dec_len), g
         )
-        decoder_name = "decoder.onnx"
+        decoder_name = f"decoder-{lower_lang}.onnx"
         tts.model.forward = tts.model.flow_dec_forward
         torch.onnx.export(tts.model,               # model being run
                         inputs,                    # model input (or a tuple for multiple inputs)

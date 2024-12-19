@@ -5,11 +5,6 @@ MeloTTS DEMO on Axera AX650
 - 目前模型分成了 encoder、decoder 两部分，encoder 部分尚未转成 axmodel（目前通过 onnxruntime 运行） 
 - `models/` 下的模型为中英混合模型，如需自行转换请参考[模型转换](/model_convert/README.md)
 
-TBD：
-
-- [ ] encoder 转成 axmodel
-- [ ] 效果与官方 repo 对齐
-
 ## 模型转换
 
 [模型转换](./model_convert/README.md)
@@ -69,6 +64,17 @@ python3 melotts.py -s 爱芯元智半导体股份有限公司，致力于打造�
 
 https://github.com/user-attachments/assets/eda5c10c-7d30-46e5-a56a-f6edcf7813af
 
+
+详细的运行参数：  
+| 参数名称 | 说明 | 默认值 |
+| --- | --- | --- |
+| -s/--sentence | 输入句子 | |
+| -w/--wav | 输出音频路径，wav格式 | output.wav |
+| -e/--encoder | encoder模型路径 | ../models/encoder.onnx |
+| -d/--decoder | decoder模型路径 | ../models/decoder.axmodel |
+| -sr/--sample_rate | 采样率 | 44100 |
+| --speed | 语速，越大表示越快 | 0.8 |
+| --language | 从"ZH", "ZH_MIX_EN", "JP", "EN", 'KR', "SP", "FR"选择，分别对应中文、中英混合、日语、英语、韩语、西班牙语，法语 | ZH_MIX_EN
 
 ### CPP API 运行
 

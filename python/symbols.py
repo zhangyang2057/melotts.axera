@@ -560,6 +560,7 @@ en_symbols = [
 ]
 
 LANG_TO_SYMBOL_MAP = {
+    "ZH": zh_mix_en_symbols,
     "ZH_MIX_EN": zh_mix_en_symbols,
     "JP": jp_symbols,
     "EN": en_symbols
