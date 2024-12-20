@@ -10,6 +10,7 @@ from split_utils import split_sentence
 from text import cleaned_text_to_sequence
 from text.cleaner import clean_text
 from symbols import *
+import re
 
 def intersperse(lst, item):
     result = [item] * (len(lst) * 2 + 1)
@@ -144,7 +145,7 @@ def main():
     print(f"load models take {1000 * (time.time() - start)}ms")
 
     # Load static input
-    g = np.fromfile("../models/g.bin", dtype=np.float32).reshape(1, 256, 1)
+    g = np.fromfile(f"../models/g-{language.lower()}.bin", dtype=np.float32).reshape(1, 256, 1)
 
     # Final wav
     audio_list = []
