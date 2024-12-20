@@ -22,6 +22,12 @@ pip install -r requirements.txt
 ```
 python convert.py
 ```  
+运行参数说明：
+| 参数名称 | 说明 | 默认值 |
+| --- | --- | --- |
+| -l/--language | 转换哪个语言的模型，目前支持EN, FR, JP, ES, ZH, KR，分别对应英语、法语、日语、西班牙语、中文、韩语 | ZH |
+| --dec_len | decoder输入长度 | 128 |
+
 
 ## 转换模型(ONNX -> Axera)
 

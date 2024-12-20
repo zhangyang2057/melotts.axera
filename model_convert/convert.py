@@ -10,9 +10,12 @@ import onnx, onnxsim
 import json
 
 TEXT = {
-    "ZH": "爱芯元智半导体股份有限公司，致力于打造世界领先的人工智能感知与边缘计算芯片。服务智慧城市、智能驾驶、机器人的海量普惠的应用",
-    "JP": "海の向こうには何があるの？",
-    "EN": "Did you ever hear a folk tale about a giant turtle?"
+    "ZH": "爱芯元智半导体股份有限公司，致力于打造世界领先的人工智能感知与边缘计算芯片。服务智慧城市、智能驾驶、机器人的海量普惠的应用", # Chinese
+    "JP": "海の向こうには何があるの？", # Japanese
+    "EN": "Did you ever hear a folk tale about a giant turtle?", # English
+    "KR": "한국 음식을 먹어보고 싶어요. 불고기랑 김치찌개가 제가 좋아하는 음식이에요.", # Korean
+    "FR": "Les cafés animés résonnent de conversations passionnées et du parfum enivrant du café fraîchement moulu.", # French
+    "ES": "El susurro suave del viento atraviesa los campos de lavanda, llevándose consigo el aroma de la Provenza." # Spanish
 }
 
 def get_args():

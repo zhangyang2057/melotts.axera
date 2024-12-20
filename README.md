@@ -3,11 +3,11 @@
 MeloTTS DEMO on Axera AX650
 
 - 目前模型分成了 encoder、decoder 两部分，encoder 部分尚未转成 axmodel（目前通过 onnxruntime 运行） 
-- `models/` 下的模型为中英混合模型，如需自行转换请参考[模型转换](/model_convert/README.md)
 
 ## 模型转换
 
-[模型转换](./model_convert/README.md)
+预转换好的模型（中文、英语、日语）可通过脚本download_models.sh下载  
+如需自行转换请参考：[模型转换](./model_convert/README.md)
 
 ## 上板部署
 
