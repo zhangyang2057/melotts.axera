@@ -157,7 +157,7 @@ class TTS(nn.Module):
             
             with torch.no_grad():
                 g = self.model.emb_g(torch.IntTensor([speaker_id])).unsqueeze(-1)
-                g.numpy().astype(np.float32).tofile("../models/g.bin")
+                g.numpy().astype(np.float32).tofile(f"g-{language.lower()}.bin")
 
                 z_p, pronoun_lens, audio_len = self.model.enc_forward(
                     phones,
