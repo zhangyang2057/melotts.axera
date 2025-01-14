@@ -53,7 +53,7 @@ def get_args():
     parser.add_argument("--decoder", "-d", type=str, required=False, default="../models/decoder.axmodel")
     parser.add_argument("--sample_rate", "-sr", type=int, required=False, default=44100)
     parser.add_argument("--speed", type=float, required=False, default=0.8)
-    parser.add_argument("--language", type=str, 
+    parser.add_argument("--language", "-l", type=str, 
                         choices=["ZH", "ZH_MIX_EN", "JP", "EN", 'KR', "ES", "SP","FR"], required=False, default="ZH_MIX_EN")
     return parser.parse_args()
 
