@@ -9,7 +9,7 @@ import time
 from split_utils import split_sentence
 from text import cleaned_text_to_sequence
 from text.cleaner import clean_text
-from symbols import *
+from text.symbols import symbols
 import re
 
 def intersperse(lst, item):
@@ -130,7 +130,8 @@ def main():
     print(f"decoder: {dec_model}")
     print(f"language: {language}")
 
-    _symbol_to_id = {s: i for i, s in enumerate(LANG_TO_SYMBOL_MAP[language])}
+    # _symbol_to_id = {s: i for i, s in enumerate(LANG_TO_SYMBOL_MAP[language])}
+    _symbol_to_id = {s: i for i, s in enumerate(symbols)}
 
     # Split sentence
     start = time.time()
@@ -157,7 +158,6 @@ def main():
         print(f"\nSentence[{n}]: {se}")
         # Convert sentence to phones and tones
         phones, tones, lang_ids, norm_text, word2ph = get_text_for_tts_infer(se, language, symbol_to_id=_symbol_to_id)
-
         start = time.time()
         # Run encoder
         z_p, pronoun_lens, audio_len = sess_enc.run(None, input_feed={
@@ -168,7 +168,6 @@ def main():
                                     'noise_scale_w': np.array([0], dtype=np.float32),
                                     'sdp_ratio': np.array([0], dtype=np.float32)})
         print(f"encoder run take {1000 * (time.time() - start):.2f}ms")
-
         # 计算每个词的发音长度
         word2pronoun = calc_word2pronoun(word2ph, pronoun_lens)
         # 生成word2pronoun和zp的切片

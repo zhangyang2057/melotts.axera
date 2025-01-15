@@ -10,7 +10,7 @@ import time
 from split_utils import split_sentence
 from text import cleaned_text_to_sequence
 from text.cleaner import clean_text
-from symbols import *
+from text.symbols import symbols
 import re
 
 def intersperse(lst, item):
@@ -131,7 +131,7 @@ def main():
     print(f"decoder: {dec_model}")
     print(f"language: {language}")
 
-    _symbol_to_id = {s: i for i, s in enumerate(LANG_TO_SYMBOL_MAP[language])}
+    _symbol_to_id = {s: i for i, s in enumerate(symbols)}
 
     # Split sentence
     start = time.time()

@@ -8,6 +8,7 @@ pykakasi==2.2.1
 pypinyin==0.50.0
 cn2an==0.5.22
 g2p_en==2.1.0
+gruut[de,es,fr]==2.2.3
 g2pkk==0.1.2
 jamo==0.4.1
 jieba==0.42.1
