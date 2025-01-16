@@ -124,19 +124,28 @@ def main():
     dec_model = args.decoder # default="../models/decoder.onnx"
     language = args.language # default: ZH_MIX_EN
     dec_len = args.dec_len # default: 128
+
     if language == "ZH":
         language = "ZH_MIX_EN"
+
+    if enc_model is None:
+        if "ZH" in language:
+            enc_model = "../models/encoder-zh.onnx"
+        else:
+            enc_model = f"../models/encoder-{language.lower()}.onnx"
+        assert os.path.exists(enc_model), f"Encoder model ({enc_model}) not exist!"
+    if dec_model is None:
+        if "ZH" in language:
+            dec_model = "../models/decoder-zh.onnx"
+        else:
+            dec_model = f"../models/decoder-{language.lower()}.onnx"
+        assert os.path.exists(dec_model), f"Decoder model ({dec_model}) not exist!"
 
     print(f"sentence: {sentence}")
     print(f"sample_rate: {sample_rate}")
     print(f"encoder: {enc_model}")
     print(f"decoder: {dec_model}")
     print(f"language: {language}")
-
-    if enc_model is None:
-        enc_model = f"../models/encoder-{language.lower()}.onnx"
-    if dec_model is None:
-        dec_model = f"../models/decoder-{language.lower()}.onnx"
 
     _symbol_to_id = {s: i for i, s in enumerate(LANG_TO_SYMBOL_MAP[language])}
 
