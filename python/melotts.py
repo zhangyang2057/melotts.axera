@@ -10,7 +10,7 @@ import time
 from split_utils import split_sentence
 from text import cleaned_text_to_sequence
 from text.cleaner import clean_text
-from text.symbols import symbols
+from symbols import LANG_TO_SYMBOL_MAP
 import re
 
 def intersperse(lst, item):
@@ -49,8 +49,9 @@ def get_args():
     )
     parser.add_argument("--sentence", "-s", type=str, required=False, default="爱芯元智半导体股份有限公司，致力于打造世界领先的人工智能感知与边缘计算芯片。服务智慧城市、智能驾驶、机器人的海量普惠的应用")
     parser.add_argument("--wav", "-w", type=str, required=False, default="output.wav")
-    parser.add_argument("--encoder", "-e", type=str, required=False, default="../models/encoder.onnx")
-    parser.add_argument("--decoder", "-d", type=str, required=False, default="../models/decoder.axmodel")
+    parser.add_argument("--encoder", "-e", type=str, required=False, default=None)
+    parser.add_argument("--decoder", "-d", type=str, required=False, default=None)
+    parser.add_argument("--dec_len", type=int, default=128)
     parser.add_argument("--sample_rate", "-sr", type=int, required=False, default=44100)
     parser.add_argument("--speed", type=float, required=False, default=0.8)
     parser.add_argument("--language", "-l", type=str, 
@@ -122,6 +123,7 @@ def main():
     enc_model = args.encoder # default="../models/encoder.onnx"
     dec_model = args.decoder # default="../models/decoder.axmodel"
     language = args.language # default: ZH_MIX_EN
+    dec_len = args.dec_len # default: 128
     if language == "ZH":
         language = "ZH_MIX_EN"
 
@@ -131,7 +133,12 @@ def main():
     print(f"decoder: {dec_model}")
     print(f"language: {language}")
 
-    _symbol_to_id = {s: i for i, s in enumerate(symbols)}
+    if enc_model is None:
+        enc_model = f"../models/encoder-{language.lower()}.onnx"
+    if dec_model is None:
+        dec_model = f"../models/decoder-{language.lower()}.axmodel"
+
+    _symbol_to_id = {s: i for i, s in enumerate(LANG_TO_SYMBOL_MAP[language])}
 
     # Split sentence
     start = time.time()
@@ -142,7 +149,6 @@ def main():
     start = time.time()
     sess_enc = ort.InferenceSession(enc_model, providers=["CPUExecutionProvider"], sess_options=ort.SessionOptions())
     sess_dec = InferenceSession.load_from_model(dec_model)
-    dec_len = 128
     print(f"load models take {1000 * (time.time() - start)}ms")
 
     # Load static input
