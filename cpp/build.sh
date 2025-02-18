@@ -11,5 +11,9 @@ make install
 popd
 
 pushd install
-./melotts
+./melotts -e ../../models/encoder-zh.onnx \
+          -d ../../models/decoder-zh.onnx \
+          -l ../../models/lexicon.txt \
+          -t ../../models/tokens.txt \
+          --g ../../models/g-zh_mix_en.bin
 popd
