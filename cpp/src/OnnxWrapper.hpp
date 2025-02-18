@@ -12,15 +12,18 @@ public:
 
     int Init(const std::string& model_file);
 
-    std::vector<Ort::Value> Run(std::vector<int>& phone, 
+    std::vector<Ort::Value> Run(std::vector<int>& phone,
                                 std::vector<int>& tones,
                                 std::vector<int>& langids,
                                 std::vector<float>& g,
-                                
+
                                 float noise_scale,
                                 float length_scale,
                                 float noise_scale_w,
                                 float sdp_ratio);
+
+    std::vector<Ort::Value> Run(std::vector<float>& z_p,
+                                std::vector<float>& g);
 
     inline int GetInputSize(int index) const {
         return m_input_sizes[index];

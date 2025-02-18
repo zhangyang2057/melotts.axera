@@ -17,7 +17,7 @@ int OnnxWrapper::Init(const std::string& model_file) {
     // #ifdef USE_CUDA
     //  OrtSessionOptionsAppendExecutionProvider_CUDA(session_options, 0); // C API stable.
     // #endif
- 
+
     // 1. session
     m_session = new Ort::Session(m_ort_env, model_file.c_str(), session_options);
     // memory allocation and options
@@ -35,15 +35,15 @@ int OnnxWrapper::Init(const std::string& model_file) {
     //     std::string output_name(m_session->GetOutputNameAllocated(i, allocator).get());
     //     printf("name[%d]: %s\n", i, output_name.c_str());
     // }
- 
+
     return 0;
 }
 
-std::vector<Ort::Value> OnnxWrapper::Run(std::vector<int>& phone, 
+std::vector<Ort::Value> OnnxWrapper::Run(std::vector<int>& phone,
                                 std::vector<int>& tones,
                                 std::vector<int>& langids,
                                 std::vector<float>& g,
-                                
+
                                 float noise_scale,
                                 float noise_scale_w,
                                 float length_scale,
@@ -51,7 +51,7 @@ std::vector<Ort::Value> OnnxWrapper::Run(std::vector<int>& phone,
     int64_t phonelen = phone.size();
     int64_t toneslen = tones.size();
     int64_t langidslen = langids.size();
-     
+
     std::array<int64_t, 1> phone_dims{phonelen};
     std::array<int64_t, 3> g_dims{1, 256, 1};
     std::array<int64_t, 1> tones_dims{toneslen};
@@ -74,6 +74,22 @@ std::vector<Ort::Value> OnnxWrapper::Run(std::vector<int>& phone,
     input_vals.emplace_back(Ort::Value::CreateTensor<float>(memory_info_handler, &noise_scale_w, 1, noise_scale_w_dims.data(), noise_scale_w_dims.size()));
     input_vals.emplace_back(Ort::Value::CreateTensor<float>(memory_info_handler, &length_scale, 1, length_scale_dims.data(), length_scale_dims.size()));
     input_vals.emplace_back(Ort::Value::CreateTensor<float>(memory_info_handler, &sdp_ratio, 1, sdp_scale_dims.data(), sdp_scale_dims.size()));
+
+    return m_session->Run(Ort::RunOptions{nullptr}, input_names, input_vals.data(), input_vals.size(), output_names, m_output_num);
+}
+
+std::vector<Ort::Value> OnnxWrapper::Run(std::vector<float>& z_p,
+                                std::vector<float>& g) {
+    std::array<int64_t, 3> z_p_dims{1, 192, 128};
+    std::array<int64_t, 3> g_dims{1, 256, 1};
+
+    const char* input_names[] = {"z_p", "g"};
+    const char* output_names[] = {"audio"};
+
+    Ort::MemoryInfo memory_info_handler = Ort::MemoryInfo::CreateCpu(OrtArenaAllocator, OrtMemTypeDefault);
+    std::vector<Ort::Value> input_vals;
+    input_vals.emplace_back(Ort::Value::CreateTensor<float>(memory_info_handler, z_p.data(), z_p.size(), z_p_dims.data(), z_p_dims.size()));
+    input_vals.emplace_back(Ort::Value::CreateTensor<float>(memory_info_handler, g.data(), g.size(), g_dims.data(), g_dims.size()));
 
     return m_session->Run(Ort::RunOptions{nullptr}, input_names, input_vals.data(), input_vals.size(), output_names, m_output_num);
 }
