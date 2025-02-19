@@ -10,10 +10,13 @@ elseif (CMAKE_BUILD_TYPE MATCHES Release)
 endif()
 
 # onnxruntime
-include_directories(onnxruntime/include/)
-include_directories(onnxruntime/include/onnxruntime/core/session)
-link_directories(onnxruntime/lib)
+set(arch "x86_64")
+if (CMAKE_CROSSCOMPILING)
+    set(arch "riscv64")
+endif()
 
+include_directories(onnxruntime/${arch}/include/)
+link_directories(onnxruntime/${arch}/lib)
 
 include_directories(src)
 aux_source_directory(src SRC)
@@ -21,10 +24,8 @@ set(CMAKE_INSTALL_RPATH ${CMAKE_INSTALL_PREFIX}/bin)
 add_executable(${PROJECT_NAME} ${PROJECT_NAME}.cpp ${SRC})
 target_link_libraries(${PROJECT_NAME} onnxruntime onnxruntime_providers_shared)
 
-file(COPY onnxruntime/lib/libonnxruntime.so DESTINATION ${CMAKE_INSTALL_PREFIX})
-file(COPY onnxruntime/lib/libonnxruntime.so.1 DESTINATION ${CMAKE_INSTALL_PREFIX})
-file(COPY onnxruntime/lib/libonnxruntime.so.1.19.2 DESTINATION ${CMAKE_INSTALL_PREFIX})
-file(COPY onnxruntime/lib/libonnxruntime_providers_shared.so DESTINATION ${CMAKE_INSTALL_PREFIX})
+file(GLOB onnx_lib_files  "onnxruntime/${arch}/lib/*")
+file(COPY ${onnx_lib_files} DESTINATION ${CMAKE_INSTALL_PREFIX})
 
 install(TARGETS ${PROJECT_NAME}
         RUNTIME

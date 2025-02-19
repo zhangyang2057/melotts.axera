@@ -14,12 +14,31 @@
 #include <iostream>
 #include <cmath>
 #include <ctime>
-#include <sys/time.h>
-
+#include <chrono>
 #include "cmdline.hpp"
 #include "OnnxWrapper.hpp"
 #include "AudioFile.h"
 #include "Lexicon.hpp"
+
+
+class ScopedTiming {
+public:
+    ScopedTiming(std::string info = "ScopedTiming") : m_info(info) {
+        m_start = std::chrono::steady_clock::now();
+    }
+
+    ~ScopedTiming() {
+        m_stop = std::chrono::steady_clock::now();
+        double elapsed_ms = std::chrono::duration<double,std::milli>(m_stop - m_start).count();
+        std::cout << m_info << " took " << elapsed_ms << " ms" << std::endl;
+    }
+
+private:
+    std::string m_info;
+    std::chrono::steady_clock::time_point m_start;
+    std::chrono::steady_clock::time_point m_stop;
+};
+
 
 static std::vector<int> intersperse(const std::vector<int>& lst, int item) {
     std::vector<int> result(lst.size() * 2 + 1, item);
@@ -34,14 +53,6 @@ static int calc_product(const std::vector<int64_t>& dims) {
     for (auto i : dims)
         result *= i;
     return result;
-}
-
-static double get_current_time()
-{
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-
-    return tv.tv_sec * 1000.0 + tv.tv_usec / 1000.0;
 }
 
 int main(int argc, char** argv) {
@@ -109,39 +120,46 @@ int main(int argc, char** argv) {
     fread(g.data(), sizeof(float), g.size(), fp);
     fclose(fp);
 
-    double start, end;
 
-    start = get_current_time();
     OnnxWrapper encoder;
-    if (0 != encoder.Init(encoder_file)) {
+    int ret = 0;
+    {
+        ScopedTiming st("load encoder");
+        ret = encoder.Init(encoder_file);
+    }
+
+    if (0 != ret)
+    {
         printf("encoder init failed!\n");
         return -1;
     }
-    end = get_current_time();
-    printf("Load encoder take %.2f ms\n", (end - start));
 
-    start = get_current_time();
     OnnxWrapper decoder;
-    if (0 != decoder.Init(decoder_file)) {
+    {
+        ScopedTiming st("load decoder");
+        ret = decoder.Init(decoder_file);
+    }
+
+    if (0 != ret) {
         printf("decoder init failed!\n");
         return -1;
     }
-    end = get_current_time();
-    printf("Load decoder take %.2f ms\n", (end - start));
 
     float noise_scale   = 0.3f;
     float length_scale  = 1.0 / speed;
     float noise_scale_w = 0.6f;
     float sdp_ratio     = 0.2f;
 
-    start = get_current_time();
-    auto encoder_output = encoder.Run(phones, tones, langids, g, noise_scale, noise_scale_w, length_scale, sdp_ratio);
+    std::vector<Ort::Value> encoder_output;
+    {
+        ScopedTiming st("encoder run");
+        encoder_output = encoder.Run(phones, tones, langids, g, noise_scale, noise_scale_w, length_scale, sdp_ratio);
+    }
+
     float* zp_data = encoder_output.at(0).GetTensorMutableData<float>();
     int audio_len = encoder_output.at(2).GetTensorMutableData<int>()[0];
     auto zp_info = encoder_output.at(0).GetTensorTypeAndShapeInfo();
     auto zp_shape = zp_info.GetShape();
-    end = get_current_time();
-    printf("Encoder run take %.2f ms\n", (end - start));
     std::cout << "zp_shape = ";
     for (size_t i = 0; i < zp_shape.size(); i++)
     {
@@ -157,7 +175,6 @@ int main(int argc, char** argv) {
     int dec_slice_num = int(std::ceil(zp_shape[2] * 1.0 / dec_len));
     std::cout << "dec_slice_num = " << dec_slice_num << std::endl;
     std::vector<float> wavlist;
-    start = get_current_time();
     for (int i = 0; i < dec_slice_num; i++) {
         std::vector<float> zp(zp_size, 0);
         int actual_size = (i + 1) * dec_len < zp_shape[2] ? dec_len : zp_shape[2] - i * dec_len;
@@ -165,15 +182,17 @@ int main(int argc, char** argv) {
             memcpy(zp.data() + n * dec_len, zp_data + n * zp_shape[2] + i * dec_len, sizeof(float) * actual_size);
         }
 
-        auto dec_out = decoder.Run(zp, g);
+        std::vector<Ort::Value> dec_out;
+        {
+            ScopedTiming st("decoder run");
+            dec_out = decoder.Run(zp, g);
+        }
         float* audio = dec_out.at(0).GetTensorMutableData<float>();
         memcpy((void *)decoder_output.data(), (void *)audio, audio_slice_len * sizeof(float));
 
         actual_size = (i + 1) * audio_slice_len < audio_len ? audio_slice_len : audio_len - i * audio_slice_len;
         wavlist.insert(wavlist.end(), decoder_output.begin(), decoder_output.begin() + actual_size);
     }
-    end = get_current_time();
-    printf("Decoder run %d times take %.2f ms\n", (end - start), dec_slice_num);
     printf("wav len: %d\n", wavlist.size());
     AudioFile<float> audio_file;
     std::vector<std::vector<float> > audio_samples{wavlist};

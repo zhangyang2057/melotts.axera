@@ -1,0 +1,1 @@
+/usr/bin/c++ -fvisibility=hidden -g -O0 -g CMakeFiles/melotts.dir/melotts.cpp.o CMakeFiles/melotts.dir/src/OnnxWrapper.cpp.o CMakeFiles/melotts.dir/src/base64.cpp.o -o melotts   -L/home/zhangyang/workspace/github/llm/melotts_zy/cpp/onnxruntime/lib  -Wl,-rpath,/home/zhangyang/workspace/github/llm/melotts_zy/cpp/onnxruntime/lib: -lonnxruntime -lonnxruntime_providers_shared 

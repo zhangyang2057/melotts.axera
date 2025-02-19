@@ -1,0 +1,7 @@
+/home/zhangyang/workspace/github/llm/melotts_zy/cpp/build/CMakeFiles/melotts.dir
+/home/zhangyang/workspace/github/llm/melotts_zy/cpp/build/CMakeFiles/edit_cache.dir
+/home/zhangyang/workspace/github/llm/melotts_zy/cpp/build/CMakeFiles/rebuild_cache.dir
+/home/zhangyang/workspace/github/llm/melotts_zy/cpp/build/CMakeFiles/list_install_components.dir
+/home/zhangyang/workspace/github/llm/melotts_zy/cpp/build/CMakeFiles/install.dir
+/home/zhangyang/workspace/github/llm/melotts_zy/cpp/build/CMakeFiles/install/local.dir
+/home/zhangyang/workspace/github/llm/melotts_zy/cpp/build/CMakeFiles/install/strip.dir
