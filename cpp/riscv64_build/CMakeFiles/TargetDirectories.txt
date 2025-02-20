@@ -1,7 +1,0 @@
-/home/zhangyang/workspace/github/llm/melotts_zy/cpp/riscv64_build/CMakeFiles/melotts.dir
-/home/zhangyang/workspace/github/llm/melotts_zy/cpp/riscv64_build/CMakeFiles/edit_cache.dir
-/home/zhangyang/workspace/github/llm/melotts_zy/cpp/riscv64_build/CMakeFiles/rebuild_cache.dir
-/home/zhangyang/workspace/github/llm/melotts_zy/cpp/riscv64_build/CMakeFiles/list_install_components.dir
-/home/zhangyang/workspace/github/llm/melotts_zy/cpp/riscv64_build/CMakeFiles/install.dir
-/home/zhangyang/workspace/github/llm/melotts_zy/cpp/riscv64_build/CMakeFiles/install/local.dir
-/home/zhangyang/workspace/github/llm/melotts_zy/cpp/riscv64_build/CMakeFiles/install/strip.dir

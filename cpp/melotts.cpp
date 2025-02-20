@@ -248,7 +248,7 @@ int main(int argc, char** argv) {
     type = entry->parameter_type(3).expect("parameter type out of index");
     ts_type = type.as<nncase::tensor_type>().expect("input is not a tensor type");
     data_type = ts_type->dtype()->typecode();
-    nncase::dims_t g_shape{1, 256, 1};
+    nncase::dims_t g_shape{1, g.size(), 1};
     auto g_tensor = nncase::runtime::host_runtime_tensor::create(data_type, g_shape, nncase::runtime::host_runtime_tensor::pool_shared).expect("cannot create input tensor").impl();
     auto g_buffer = g_tensor->buffer().as_host().unwrap_or_throw();
     auto g_mapped = g_buffer.map(nncase::runtime::map_write).unwrap_or_throw();
@@ -301,15 +301,15 @@ int main(int argc, char** argv) {
     ts_type = type.as<nncase::tensor_type>().expect("input is not a tensor type");
     data_type = ts_type->dtype()->typecode();
     nncase::dims_t sdp_ratio_shape{1};
-    auto sdp_ratio_shape_tensor = nncase::runtime::host_runtime_tensor::create(data_type, sdp_ratio_shape, nncase::runtime::host_runtime_tensor::pool_shared).expect("cannot create input tensor").impl();
-    auto sdp_ratio_shape_buffer = sdp_ratio_shape_tensor->buffer().as_host().unwrap_or_throw();
-    auto sdp_ratio_shape_mapped = sdp_ratio_shape_buffer.map(nncase::runtime::map_write).unwrap_or_throw();
-    auto sdp_ratio_shape_ptr = sdp_ratio_shape_mapped.buffer().as_span<float>().data();
-    sdp_ratio_shape_ptr[0] = sdp_ratio;
-    sdp_ratio_shape_buffer.sync(nncase::runtime::sync_write_back, true).unwrap_or_throw();
-    inputs.push_back(sdp_ratio_shape_tensor);
+    auto sdp_ratio_tensor = nncase::runtime::host_runtime_tensor::create(data_type, sdp_ratio_shape, nncase::runtime::host_runtime_tensor::pool_shared).expect("cannot create input tensor").impl();
+    auto sdp_ratio_buffer = sdp_ratio_tensor->buffer().as_host().unwrap_or_throw();
+    auto sdp_ratio_mapped = sdp_ratio_buffer.map(nncase::runtime::map_write).unwrap_or_throw();
+    auto sdp_ratio_ptr = sdp_ratio_mapped.buffer().as_span<float>().data();
+    sdp_ratio_ptr[0] = sdp_ratio;
+    sdp_ratio_buffer.sync(nncase::runtime::sync_write_back, true).unwrap_or_throw();
+    inputs.push_back(sdp_ratio_tensor);
 
-#if 0
+#if 1
     // run
     nncase::value_t outs;
     {
