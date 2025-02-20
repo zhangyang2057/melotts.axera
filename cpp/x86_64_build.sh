@@ -8,6 +8,7 @@ mkdir -p ${build}
 
 pushd ${build}
 cmake ..  \
+  -DBUILD_ONNX=1 \
   -DCMAKE_INSTALL_PREFIX=install \
   -DCMAKE_BUILD_TYPE=${build_type}
 make -j8

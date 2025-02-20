@@ -24,17 +24,19 @@ int OnnxWrapper::Init(const std::string& model_file) {
     Ort::AllocatorWithDefaultOptions allocator;
     // 2. input name & input dims
     m_input_num = m_session->GetInputCount();
-    // for (int i = 0; i < m_input_num; i++) {
-    //     std::string input_name(m_session->GetInputNameAllocated(i, allocator).get());
-    //     printf("name[%d]: %s\n", i, input_name.c_str());
-    // }
+    m_input_names.resize(m_input_num);
+    for (int i = 0; i < m_input_num; i++)
+    {
+        m_input_names[i] = m_session->GetInputNameAllocated(i, allocator).get();
+    }
 
     // 4. output names & output dims
     m_output_num = m_session->GetOutputCount();
-    // for (int i = 0; i < m_output_num; i++) {
-    //     std::string output_name(m_session->GetOutputNameAllocated(i, allocator).get());
-    //     printf("name[%d]: %s\n", i, output_name.c_str());
-    // }
+    m_output_names.resize(m_output_num);
+
+    for (int i = 0; i < m_output_num; i++) {
+        m_output_names[i] = m_session->GetOutputNameAllocated(i, allocator).get();
+    }
 
     return 0;
 }
